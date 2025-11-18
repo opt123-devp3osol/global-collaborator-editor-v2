@@ -41,7 +41,7 @@ export const TableHoverOverlay = Extension.create({
                         showSelectionOnHover = false;      // hide rectangle again
                         hide(selRect);
                         overlay.classList.remove('ql-table-overlay-active');
-
+                        doc.body.addEventListener('tbt-table-toolbar-closed', onToolbarClosed, { capture: true });
                         // optional: clear indices so no re-highlight on next layout pass
                         currentRowIndex = null;
                         currentColIndex = null;
@@ -51,9 +51,11 @@ export const TableHoverOverlay = Extension.create({
 
                     doc.body.addEventListener('tbt-table-toolbar-closed', onToolbarClosed, { capture: true });
 
-                    doc.body.addEventListener('tbt-table-toolbar-opened', () => {
-                        overlay.classList.add('ql-table-overlay-active');
-                    }, { capture: true });
+                    const onToolbarOpened = () => {
+                        overlay.classList.add('ql-table-overlay-active')
+                    }
+
+                    doc.body.addEventListener('tbt-table-toolbar-opened', onToolbarOpened, { capture: true })
 
                     // ---------- plus buttons ----------
                     const btnAddCols = el('div','ql-table-embed-formatter__handle-add-columns')
@@ -89,10 +91,7 @@ export const TableHoverOverlay = Extension.create({
                     let wrapperScrollHandler = null
                     let currentRowIndex = null
                     let currentColIndex = null
-                    let isDragging = false
-                    let dragStartCell = null
-                    let dragEndCell = null
-                    let dragTeardown = null
+                    let anchorCell = null
                     let areaSelection = null
 
                     // track which toolbar is open ('column' | 'row' | null)
@@ -117,7 +116,6 @@ export const TableHoverOverlay = Extension.create({
                             // open column toolbar on click
                             d.addEventListener('mousedown', (e) => {
                                 e.preventDefault();
-                                e.preventDefault()
                                 const idx = colDots.indexOf(d)
                                 if (idx >= 0) {
                                     currentColIndex = idx
@@ -141,7 +139,6 @@ export const TableHoverOverlay = Extension.create({
                             // open row toolbar on click
                             d.addEventListener('mousedown', (e) => {
                                 e.preventDefault();
-                                e.preventDefault()
                                 const idx = rowDots.indexOf(d)
                                 if (idx >= 0) {
                                     showSelectionOnHover = true
@@ -233,11 +230,7 @@ export const TableHoverOverlay = Extension.create({
 
                         // highlight whichever is active
                         // only show selection rectangle if explicitly enabled
-                        if (isDragging && dragStartCell && dragEndCell) {
-                            // live-drag highlight
-                            const w = (wrapper || hoveredTable).getBoundingClientRect()
-                            setSelRectFromCells(dragStartCell, dragEndCell, w)
-                        } else if (areaSelection && areaSelection.a?.isConnected && areaSelection.b?.isConnected) {
+                        if (areaSelection && areaSelection.a?.isConnected && areaSelection.b?.isConnected) {
                             // persistent area highlight after mouseup
                             const w = (wrapper || hoveredTable).getBoundingClientRect()
                             setSelRectFromCells(areaSelection.a, areaSelection.b, w)
@@ -256,28 +249,17 @@ export const TableHoverOverlay = Extension.create({
                     }
 
 
-
-
-
-                    const cellRC = (cell) => {
-                        if (!cell) return null
-                        const rowEl = cell.parentElement
-                        const allRows = rowsOf(hoveredTable)
-                        return { r: allRows.indexOf(rowEl), c: cell.cellIndex }
-                    }
-
+                    // viewport rect covering both cells
                     const rectOfCells = (a, b) => {
                         const ar = a.getBoundingClientRect()
                         const br = b.getBoundingClientRect()
-                        return {
-                            left:   Math.min(ar.left,   br.left),
-                            top:    Math.min(ar.top,    br.top),
-                            right:  Math.max(ar.right,  br.right),
-                            bottom: Math.max(ar.bottom, br.bottom),
-                            width:  Math.abs(Math.max(ar.right, br.right) - Math.min(ar.left, br.left)),
-                            height: Math.abs(Math.max(ar.bottom, br.bottom) - Math.min(ar.top, br.top)),
-                        }
+                        const left   = Math.min(ar.left,   br.left)
+                        const top    = Math.min(ar.top,    br.top)
+                        const right  = Math.max(ar.right,  br.right)
+                        const bottom = Math.max(ar.bottom, br.bottom)
+                        return { left, top, right, bottom, width: right-left, height: bottom-top }
                     }
+                    // put caret inside a cell so it's editable
 
                     const setSelRectFromCells = (a, b, wrapperRect) => {
                         if (!a || !b) return hide(selRect)
@@ -293,91 +275,6 @@ export const TableHoverOverlay = Extension.create({
                         selRect.style.width  = `${x2 - x1}px`
                         selRect.style.height = `${y2 - y1}px`
                         show(selRect)
-                    }
-
-                    const beginDragSelect = (startCell) => {
-                        if (!hoveredTable || !startCell) return
-                        if (!wrapper) wrapper = startCell.closest('.tbt-scroll-wrap') || hoveredTable
-                        isDragging = true
-                        dragStartCell = startCell
-                        dragEndCell = startCell
-                        showSelectionOnHover = true
-                        overlay.classList.add('ql-table-overlay-active')
-                        const wrapRect = (wrapper || hoveredTable).getBoundingClientRect()
-                        setSelRectFromCells(dragStartCell, dragEndCell, wrapRect)
-                        areaSelection = { a: dragStartCell, b: dragEndCell }
-                        const onMoveDrag = (ev) => {
-                            if (!isDragging) return
-                            const t = ev.target.closest?.('td,th')
-                            if (t && hoveredTable.contains(t)) {
-                                dragEndCell = t
-                                const w = (wrapper || hoveredTable).getBoundingClientRect()
-                                setSelRectFromCells(dragStartCell, dragEndCell, w)
-                                areaSelection = { a: dragStartCell, b: dragEndCell }
-                            }
-                        }
-                        const onUpDrag = () => {
-                            if (!isDragging) return
-                            isDragging = false
-                            doc.removeEventListener('mousemove', onMoveDrag, true)
-                            doc.removeEventListener('mouseup', onUpDrag, true)
-
-                            // decide which toolbar to show and which buttons to hide
-                            try {
-                                const a = cellRC(dragStartCell)
-                                const b = cellRC(dragEndCell)
-                                if (!a || !b) return
-                                const r0 = Math.min(a.r, b.r), r1 = Math.max(a.r, b.r)
-                                const c0 = Math.min(a.c, b.c), c1 = Math.max(a.c, b.c)
-                                const rows = rowsOf(hoveredTable)
-                                const cols = colsCountOf(hoveredTable)
-                                const fullRowSpan  = (c0 === 0 && c1 === cols - 1)
-                                const fullColSpan  = (r0 === 0 && r1 === rows.length - 1)
-                                const singleCell   = (r0 === r1 && c0 === c1)
-
-
-                                // Anchor toolbar to the exact selection bounds
-                                const tl = rows[r0]?.querySelectorAll('th,td')[c0]
-                                const br = rows[r1]?.querySelectorAll('th,td')[c1]
-                                if (!tl || !br) return
-                                const anchorRect = rectOfCells(tl, br)
-
-                                // build hide list
-                                const hideForArea = [
-                                    '[data-action="add_row_top"]',
-                                    '[data-action="add_row_bottom"]',
-                                    '[data-action="delete_row"]',
-                                    '[data-action="add_column_left"]',
-                                    '[data-action="add_column_right"]',
-                                    '[data-action="delete_column"]',
-                                ]
-
-                                const withMask = !singleCell  // allow typing for single-cell case
-                                if (fullColSpan) {
-                                    editor.storage?.tableFormatToolbar?.show?.({ mode: 'column', anchorRect, withMask })
-                                } else if (fullRowSpan) {
-                                    editor.storage?.tableFormatToolbar?.show?.({ mode: 'row', anchorRect, withMask })
-                                } else {
-                                    // freeform area → use row toolbar UI but hide row/col add/delete
-                                    editor.storage?.tableFormatToolbar?.show?.({ mode: 'row', anchorRect, withMask, hideSelectors: hideForArea })
-                                }
-
-                                openToolbarMode = fullColSpan ? 'column' : 'row'
-                            } finally {
-                                dragStartCell = dragEndCell = null
-                            }
-                            // If it was a single-cell selection, do NOT keep overlay active,
-                            // so caret/typing continue to work naturally.
-                            if (singleCell) {
-                                overlay.classList.remove('ql-table-overlay-active')
-                            }
-                        }
-                        doc.addEventListener('mousemove', onMoveDrag, true)
-                        doc.addEventListener('mouseup', onUpDrag, true)
-                        dragTeardown = () => {
-                            doc.removeEventListener('mousemove', onMoveDrag, true)
-                            doc.removeEventListener('mouseup', onUpDrag, true)
-                        }
                     }
 
 
@@ -492,7 +389,6 @@ export const TableHoverOverlay = Extension.create({
                     }
 
                     const onMove = (e) => {
-                        if (isDragging) return
                         const t = e.target
                         const table = (t.nodeName === 'TABLE' ? t : t.closest?.('table'))
                         if (table && view.dom.contains(table)) {
@@ -509,7 +405,7 @@ export const TableHoverOverlay = Extension.create({
                     }
 
                     view.dom.addEventListener('mousedown', (ev) => {
-                        // ignore if a toolbar/mask/handle is clicked
+                        // ignore toolbar/mask/handles
                         const bad = ev.target.closest('.ql-blot-format-toolbar, .ql-blot-format-toolbar__mask, .ql-table-embed-formatter__handle-row, .ql-table-embed-formatter__handle-column')
                         if (bad) return
                         const cell = ev.target.closest?.('td,th')
@@ -517,8 +413,61 @@ export const TableHoverOverlay = Extension.create({
                         const table = cell.closest('table')
                         if (!table || !view.dom.contains(table)) return
                         if (hoveredTable !== table) setHoveredTable(table)
-                        ev.preventDefault()
-                        beginDragSelect(cell)
+
+                        // SHIFTClick → range select; plain click → set anchor only (no overlay)
+                        if (ev.shiftKey) {
+                            ev.preventDefault()
+                            const start = (anchorCell && anchorCell.isConnected && hoveredTable.contains(anchorCell))
+                                ? anchorCell
+                                : cell
+
+                            // compute rect  show overlay & toolbar
+                            const rows = rowsOf(hoveredTable)
+                            const rc = (domCell) => ({ r: rows.indexOf(domCell.parentElement), c: domCell.cellIndex })
+                            const a = rc(start), b = rc(cell)
+                            if (a.r < 0 || a.c < 0 || b.r < 0 || b.c < 0) return
+
+                            const r0 = Math.min(a.r, b.r), r1 = Math.max(a.r, b.r)
+                            const c0 = Math.min(a.c, b.c), c1 = Math.max(a.c, b.c)
+                            const tl = rows[r0]?.querySelectorAll('th,td')[c0]
+                            const br = rows[r1]?.querySelectorAll('th,td')[c1]
+                            if (!tl || !br) return
+
+                            areaSelection = { a: tl, b: br }
+                            showSelectionOnHover = true
+                            overlay.classList.add('ql-table-overlay-active')
+
+                            const anchorRect = rectOfCells(tl, br)
+                            const cols = colsCountOf(hoveredTable)
+                            const fullRowSpan = (c0 === 0 && c1 === cols - 1)
+                            const fullColSpan = (r0 === 0 && r1 === rows.length - 1)
+                            const singleCell = (r0 === r1 && c0 === c1)
+                            const hideForArea = [
+                                '[data-action="add_row_top"]',
+                                '[data-action="add_row_bottom"]',
+                                '[data-action="delete_row"]',
+                                '[data-action="add_column_left"]',
+                                '[data-action="add_column_right"]',
+                                '[data-action="delete_column"]',
+                            ]
+                            const withMask = !singleCell
+                            if (fullColSpan) {
+                                editor.storage?.tableFormatToolbar?.show?.({ mode: 'column', anchorRect, withMask })
+                                openToolbarMode = 'column'
+                            } else if (fullRowSpan) {
+                                editor.storage?.tableFormatToolbar?.show?.({ mode: 'row', anchorRect, withMask })
+                                openToolbarMode = 'row'
+                            } else {
+                                editor.storage?.tableFormatToolbar?.show?.({ mode: 'row', anchorRect, withMask, hideSelectors: hideForArea })
+                                openToolbarMode = 'row'
+                            }
+                            layoutOverlay()
+                        } else {
+                            // plain click → caret editing and anchor set; no overlay shown
+                            anchorCell = cell
+                            closeToolbars()
+                            // allow default so caret goes inside the cell
+                        }
                     }, true)
 
                     const onDocScrollOrResize = () => {
@@ -578,13 +527,11 @@ export const TableHoverOverlay = Extension.create({
                             unbindWrapperScroll()
                             overlay.remove()
                             editor.storage?.tableFormatToolbar?.hide?.()
-                            isDragging = false
+                            anchorCell = null
                             areaSelection = null
-
-
                             // clean up our listeners
-                            doc.body.removeEventListener('tbt-table-toolbar-closed', onToolbarClosed, { capture: true });
-                            doc.body.removeEventListener('tbt-table-toolbar-opened', () => {}, { capture: true }); // only if you added it
+                            doc.body.removeEventListener('tbt-table-toolbar-opened', onToolbarOpened, { capture: true })
+                            doc.body.removeEventListener('tbt-table-toolbar-opened', onToolbarClosed, { capture: true })
                         },
                     }
                 },

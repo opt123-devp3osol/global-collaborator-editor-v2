@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="13c72ea0-e919-4171-8f66-9b94b99a3ef1" name="globalEditor">
+        <fileTransfer rootFolder="/var/www/html/app.timebox.ai/global-editor-backend" accessType="SFTP" host="192.168.1.238" port="22" sshConfigId="f0eb16a1-349e-4fb5-b8e6-0cfb66b06f38" sshConfig="apptimebox@192.168.1.238:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

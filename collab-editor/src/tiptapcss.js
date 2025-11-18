@@ -2039,4 +2039,9 @@ span.suggestion.is-empty:after {
 .ProseMirror table { table-layout: fixed; width: auto; border-collapse: collapse; }
 .ProseMirror th, .ProseMirror td { box-sizing: border-box; }
 
+.ql-table-cell--single-selected {
+  outline: 2px solid #63a3ff;
+  outline-offset: -2px;
+  background: rgba(99,163,255,.12);
+}
 `;

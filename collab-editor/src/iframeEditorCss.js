@@ -1097,6 +1097,41 @@ padding-top: 50px;
 height: calc(100vh - 55px);
 overflow:auto;
 }
+.ge_outer_most_container {
+  position: relative;
+}
+.collaboration-cursor__caret {
+  position: relative;
+  border-left: 2px solid;
+  margin-left: -1px;
+  margin-right: -1px;
+  pointer-events: none;
+}
+
+.collaboration-cursor__label {
+  position: absolute;
+  top: -1.4em;
+  left: -1px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+#ql-global-readonly-overlay {
+  position: absolute;   /* relative to .ge_outer_most_container */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  background: transparent;
+  z-index: 2147483647;
+  pointer-events: auto;
+  user-select: none;
+  touch-action: pan-x pan-y; /* allow scroll gestures */
+}
 .doc_placeholder_container{
 height:100%;
 margin:auto;

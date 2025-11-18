@@ -19,14 +19,16 @@ import { TableHoverOverlay } from './extensions/TableHoverOverlay.js'
 import { TableFormatToolbar } from './extensions/TableFormatToolbar.js'
 import { CustomTableCell, CustomTableHeader } from './extensions/CustomTableCell.js'
 import { columnResizing, tableEditing } from '@tiptap/pm/tables'
-// Optional code highlighting:
-// import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
-// import { lowlight } from 'lowlight'
 import BlockId from './extensions/BlockId.js'
 import SlashCommand from './extensions/SlashCommand.js'
 import {ResizableImage} from './extensions/ResizableImage.js'
 import {CSS} from "./iframeEditorCss.js";
 import {TIPTAPCSS} from "./tiptapcss";
+import * as Y from 'yjs'
+import Collaboration from '@tiptap/extension-collaboration'
+import * as awarenessProtocol from 'y-protocols/awareness'
+import io from 'socket.io-client'
+import {CustomCollabCursor} from "./extensions/CustomCollabCursor.js";
 
 const FontStyle = TextStyle.extend({
     addAttributes() {
@@ -60,12 +62,12 @@ const FontCommands = Extension.create({
 
 
 export function createEditorIframe(doc, editorId, options = {}) {
-    const {
-        width = 900,
-        tools = 'all', // ignore; we render full toolbar
+    const {width = 900,
+        tools = 'all',
+        baseServerUrl = 'https://backend.timebox.ai/global-editor-api',
+        mainEditorDocumentId,
     } = options
 
-    // skeleton
     doc.open()
     doc.write(`<!doctype html>
     <html>
@@ -81,6 +83,79 @@ export function createEditorIframe(doc, editorId, options = {}) {
         </body>
     </html>`)
     doc.close()
+
+    const docId = mainEditorDocumentId || editorId;
+
+    const socket = io(baseServerUrl, {
+        reconnectionAttempts: 5, // Max reconnection attempts (Socket.IO auto-reconnects)
+        reconnectionDelay: 5000, // Time before attempting to reconnect
+        transports: ['websocket'], // Ensure WebSocket is used as transport
+        path: '/global-editor-api/socket.io', // Specify the custom namespace for Socket.IO
+        query: { EIO: 4 }, // Optional query parameter for engine.io version 4
+    });
+
+    const ydoc = new Y.Doc();
+    const awareness = new awarenessProtocol.Awareness(ydoc);
+    const userName = options?.userName || `Guest-${Date.now() % 1000000}`;
+    const userColor = options?.userColor || '#' + Math.floor(Math.random() * 16777215).toString(16);
+
+
+    awareness.setLocalStateField('user', {
+        name: userName,
+        color: userColor,
+    });
+
+    const provider = {
+        awareness,
+        on: () => {},
+        off: () => {},
+    };
+
+    awareness.on('update', ({ added, updated, removed }, origin) => {
+        const changed = added.concat(updated).concat(removed);
+        if (changed.length === 0) return;
+
+        const update = awarenessProtocol.encodeAwarenessUpdate(awareness, changed);
+        socket.emit('yjs-awareness', { docId, update });
+    });
+
+    socket.on('yjs-awareness', ({ docId: remoteDocId, update }) => {
+        if (remoteDocId !== docId || !update) return;
+
+        const u = update instanceof ArrayBuffer ? new Uint8Array(update) : (update.byteLength !== undefined ? new Uint8Array(update) : update);
+
+        try {
+            awarenessProtocol.applyAwarenessUpdate(awareness, u, socket.id);
+        } catch (e) {
+            console.error('Error applying awareness update', e);
+        }
+    });
+
+    socket.on('connect', () => {
+        console.log('[YJS] connected to backend, joining doc', docId);
+        socket.emit('joinYDoc', docId);
+    });
+
+    // Send local Yjs updates to server
+    ydoc.on('update', (update) => {
+        socket.emit('yjs-update', {
+            docId,
+            update, // Uint8Array – Socket.IO handles this as binary
+        });
+    });
+
+    // Apply remote Yjs updates from server
+    socket.on('yjs-update', ({ docId: remoteDocId, update }) => {
+        if (remoteDocId !== docId || !update) return;
+
+        const u = update instanceof ArrayBuffer ? new Uint8Array(update) : (update.byteLength !== undefined ? new Uint8Array(update) : update);
+
+        try {
+            Y.applyUpdate(ydoc, u);
+        } catch (e) {
+            console.error('Error applying Yjs update', e);
+        }
+    });
 
     // styles
     const style = doc.createElement('style')
@@ -103,8 +178,17 @@ export function createEditorIframe(doc, editorId, options = {}) {
             history: true,
             bulletList: { keepMarks: true, keepAttributes: true },
             orderedList: { keepMarks: true, keepAttributes: true },
-            // If you enable CodeBlockLowlight, disable StarterKit's codeBlock:
-            // codeBlock: false,
+        }),
+        Collaboration.configure({
+            document: ydoc,
+            field: 'prosemirror',
+        }),
+        CustomCollabCursor.configure({
+            provider,
+            user: {
+                name: userName,
+                color: userColor,
+            },
         }),
         Underline,
         Link.configure({ openOnClick: false, autolink: true, defaultProtocol: 'https' }),
@@ -115,9 +199,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
         columnResizing({ handleWidth: 6, cellMinWidth: 40, lastColumnResizable: true }),
         tableEditing(),
         TableFormatToolbar,
-        Table.configure({
-            resizable: true,
-        }),
+        Table.configure({ resizable: true }),
         CustomTableHeader,
         TableRow,
         CustomTableCell,
@@ -130,8 +212,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
         FontCommands,
         Dropcursor,
         Gapcursor,
-        // DragHandleExt
-    ]
+    ];
 
     const editor = new Editor({
         element: el,

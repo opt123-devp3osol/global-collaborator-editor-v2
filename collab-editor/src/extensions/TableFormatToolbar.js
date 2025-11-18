@@ -4,22 +4,32 @@ import { Plugin ,TextSelection} from 'prosemirror-state'
 import { CellSelection, cellAround } from '@tiptap/pm/tables'
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
+
 const placeByRect = (rect, el) => {
-    // place centered above rect with a small gap; keep on-screen
     const gap = 8
+    el.style.position = 'fixed' // keep anchored to viewport
     const vw = window.innerWidth
     const vh = window.innerHeight
     const elW = el.offsetWidth || 280
     const elH = el.offsetHeight || 40
-    let x = rect.left  (rect.width  - elW) / 2
-    let y = rect.top  - elH - gap
-    // if above is off-screen, put it below
+
+    let x = rect.left + (rect.width - elW) / 2
+    let y = rect.top - elH - gap
     if (y < 0) y = rect.bottom + gap
+
     x = clamp(x, 8, vw - elW - 8)
     y = clamp(y, 8, vh - elH - 8)
+
     el.style.left = `${x}px`
-    el.style.top  = `${y}px`
+    el.style.top = `${y}px`
 }
+
+
+const swallowNextClick = (doc) => {
+    const stopper = e => e.stopPropagation()
+    doc.addEventListener('click', stopper, { capture: true, once: true })
+}
+
 
 export const TableFormatToolbar = Extension.create({
     name: 'tableFormatToolbar',
@@ -42,7 +52,7 @@ export const TableFormatToolbar = Extension.create({
                     const win = doc.defaultView
 
                     const dispatch = (name, detail = {}) => {
-                        doc.body.dispatchEvent(new CustomEvent(name, { bubbles: true, detail }));
+                        doc.body.dispatchEvent(new CustomEvent(name, { bubbles: true, detail }))
                     };
 
                     // ---------- tiny helpers ----------
@@ -135,15 +145,9 @@ export const TableFormatToolbar = Extension.create({
                     // Execute actions
                     const runAction = (action, payload) => {
                         const allOverlaysSectionCells = getOverlayCells();
-                        console.log('allOverlaysSectionCells', allOverlaysSectionCells)
                         if(!allOverlaysSectionCells?.length) return false;
 
                         selectCellsBetween(editor.view,allOverlaysSectionCells[0],allOverlaysSectionCells[allOverlaysSectionCells?.length-1])
-
-                        setTimeout(() => {
-                            console.log('hasFocus', editor.view.hasFocus(),
-                                'sel', editor.view.state.selection.constructor.name)
-                        }, 0)
 
                         // === BACKGROUND COLOR across blue area ===
                         if (action === 'cell_bg_color') {
@@ -157,9 +161,6 @@ export const TableFormatToolbar = Extension.create({
 
                         // === MERGE / UNMERGE across blue area ===
                         if (action === 'merge_cells') {
-                            // const group = getSameTagOverlayGroup()
-                            // if (!group || group.length < 2) return false
-                            // if (!makeRectSelectionFromDomCells(group)) return false
                             return editor.chain().focus().mergeCells().run()
                         }
 
@@ -187,6 +188,7 @@ export const TableFormatToolbar = Extension.create({
                     // ---------- full-screen mask ----------
                     const mask = el('div', 'ql-blot-format-toolbar__mask')
                     Object.assign(mask.style, { position: 'fixed', inset: '0', display: 'none', zIndex: '100000' })
+                    mask.tabIndex = -1
                     mask.setAttribute('aria-hidden', 'true')
                     doc.body.appendChild(mask)
 
@@ -204,6 +206,12 @@ export const TableFormatToolbar = Extension.create({
 
                     // Keep clicks inside the toolbar from closing it
                     toolbar.addEventListener('mousedown', (e) => e.stopPropagation())
+
+                    doc.addEventListener('mousedown', (e) => {
+                        if (mask.style.display === 'none' && api.isOpen() && !toolbar.contains(e.target)) {
+                            api.hide()
+                        }
+                    }, { capture: true })
 
                     // ---------- dropdown & color picker toggles (UI only) ----------
                     // Works regardless of when innerHTML is replaced (delegation on static parent)
@@ -443,18 +451,27 @@ export const TableFormatToolbar = Extension.create({
 
                     // ---------- API ----------
                     const api = {
+                        // args: { mode: 'row'|'column', x, y, anchorRect?:DOMRect, withMask?:boolean=true, hideSelectors?:string[] }
                         show: ({ mode, x, y, anchorRect = null, withMask = true, hideSelectors = [] }) => {
+                            toolbar.style.position = 'fixed'
                             lastContext = { mode, x, y }
                             toolbar.innerHTML = (mode === 'column') ? columnToolbarHTML : rowToolbarHTML
 
-                            if (withMask) showNode(mask); else hideNode(mask)
+                            if (withMask) {
+                                showNode(mask)
+                                try { view.dom.blur() } catch {}
+                                try { mask.focus() } catch {}
+                            } else {
+                                hideNode(mask)
+                                // without a mask, swallow the trailing click so we don’t close immediately
+                                swallowNextClick(doc)
+                            }
+
                             showNode(toolbar)
 
-                            // Position toolbar at coordinates
-                            // Position toolbar
-                            // If anchorRect provided, compute position from it; else use x/y.
+                            dispatch('tbt-table-toolbar-opened', { mode })
+
                             if (anchorRect) {
-                                // ensure layout so offsetWidth/Height are valid
                                 toolbar.style.visibility = 'hidden'
                                 requestAnimationFrame(() => {
                                     toolbar.style.visibility = ''
@@ -465,21 +482,22 @@ export const TableFormatToolbar = Extension.create({
                                 toolbar.style.top  = `${y}px`
                             }
 
-                            //updateMergeButtons()
-                            hideSelectors.forEach(sel => toolbar.querySelectorAll(sel).forEach(n => (n.style.display = 'none')))
-                            dispatch('tbt-table-toolbar-opened', { mode, x, y });
+                            hideSelectors.forEach(sel => {
+                                toolbar.querySelectorAll(sel).forEach(n => (n.style.display = 'none'))
+                            })
                         },
+
                         hide: () => {
                             hideNode(mask)
-                            // Close any open popovers
-                            toolbar.querySelectorAll('.ql-blot-format-toolbar__button_dropdown-menu, .ql-blot-format-toolbar__button_color-picker')
-                                .forEach(n => (n.style.display = 'none'))
-                            lastContext = { mode: null, x: 0, y: 0 }
-
-                            dispatch('tbt-table-toolbar-closed');
+                            hideNode(toolbar)
+                            try { editor?.commands?.focus?.() } catch {}
+                            dispatch('tbt-table-toolbar-closed', {})
                         },
-                        isOpen: () => mask.style.display !== 'none',
+
+                        // check toolbar itself (single-cell uses no mask)
+                        isOpen: () => toolbar.style.display !== 'none',
                     }
+
 
                     editor.storage.tableFormatToolbar.show = api.show
                     editor.storage.tableFormatToolbar.hide = api.hide

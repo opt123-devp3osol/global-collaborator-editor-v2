@@ -2,11 +2,12 @@ const path = require('path');
 
 module.exports = {
     entry: './src/editor.js',
-    mode: 'development',
+    // mode: 'development',
+    mode: 'production',
     output: {
         filename: 'global-collab-text-editor-lib-v2.js',
         path: path.resolve(__dirname, 'dist'),
-        library: 'GlobalTextEditorLibV2',
+        library: 'GlobalTextEditorLib',
         libraryTarget: 'umd',
         globalObject: 'this',
     },
