@@ -28,7 +28,7 @@ import * as Y from 'yjs'
 import Collaboration from '@tiptap/extension-collaboration'
 import * as awarenessProtocol from 'y-protocols/awareness'
 import io from 'socket.io-client'
-import {CustomCollabCursor} from "./extensions/CustomCollabCursor.js";
+import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 
 const FontStyle = TextStyle.extend({
     addAttributes() {
@@ -98,18 +98,10 @@ export function createEditorIframe(doc, editorId, options = {}) {
     const awareness = new awarenessProtocol.Awareness(ydoc);
     const userName = options?.userName || `Guest-${Date.now() % 1000000}`;
     const userColor = options?.userColor || '#' + Math.floor(Math.random() * 16777215).toString(16);
-
-
     awareness.setLocalStateField('user', {
         name: userName,
         color: userColor,
     });
-
-    const provider = {
-        awareness,
-        on: () => {},
-        off: () => {},
-    };
 
     awareness.on('update', ({ added, updated, removed }, origin) => {
         const changed = added.concat(updated).concat(removed);
@@ -119,10 +111,22 @@ export function createEditorIframe(doc, editorId, options = {}) {
         socket.emit('yjs-awareness', { docId, update });
     });
 
+    const provider = {
+        doc: ydoc,
+        awareness,
+        on: () => {},
+        off: () => {},
+    };
+
     socket.on('yjs-awareness', ({ docId: remoteDocId, update }) => {
         if (remoteDocId !== docId || !update) return;
 
-        const u = update instanceof ArrayBuffer ? new Uint8Array(update) : (update.byteLength !== undefined ? new Uint8Array(update) : update);
+        const u =
+            update instanceof Uint8Array
+                ? update
+                : update instanceof ArrayBuffer
+                    ? new Uint8Array(update)
+                    : (update.byteLength !== undefined ? new Uint8Array(update) : update);
 
         try {
             awarenessProtocol.applyAwarenessUpdate(awareness, u, socket.id);
@@ -130,6 +134,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
             console.error('Error applying awareness update', e);
         }
     });
+
 
     socket.on('connect', () => {
         console.log('[YJS] connected to backend, joining doc', docId);
@@ -183,7 +188,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
             document: ydoc,
             field: 'prosemirror',
         }),
-        CustomCollabCursor.configure({
+        CollaborationCaret.configure({
             provider,
             user: {
                 name: userName,
