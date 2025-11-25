@@ -7,15 +7,22 @@ import fs from 'fs';
 import multer from 'multer';
 import * as Y from 'yjs';
 import * as awarenessProtocol from 'y-protocols/awareness';
+import pool from "./connection.js";
+import {insertCommonApiCall, updateCommonApiCall} from "./commonModelHelper.js";
 
 const yDocs = new Map();           // docId -> Y.Doc
 const awarenessStates = new Map(); // docId -> Awareness
+// Track which docs we already pulled from DB
+const loadedDocsFromDB = new Set();
+// Debounce timers per doc
+const saveTimers = new Map();
 
 function getYDoc(docId) {
   let doc = yDocs.get(docId);
   if (!doc) {
     doc = new Y.Doc();
     yDocs.set(docId, doc);
+    attachAutosave(docId, doc);
   }
   return doc;
 }
@@ -29,8 +36,102 @@ function getAwareness(docId, ydoc) {
   return awareness;
 }
 
+/**
+ * Load existing Yjs state from DB into this ydoc (if it exists).
+ */
+async function loadYDocFromDB(docId, ydoc) {
+  if (loadedDocsFromDB.has(docId)) return;
+
+  try {
+    const res = await pool.query(
+        'SELECT y_state FROM global_editor_doc_data WHERE id = $1',
+        [docId],
+    );
+
+    if (res.rows.length > 0 && res.rows[0].y_state) {
+      const buf = res.rows[0].y_state; // Buffer from Postgres
+      const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+      Y.applyUpdate(ydoc, u8);
+    }
+
+    loadedDocsFromDB.add(docId);
+  } catch (e) {
+    console.error('Error loading YDoc from DB', e);
+  }
+}
+
+/**
+ * Upsert Y.Doc into DB (insert if not exists, else update).
+ * For now we keep doc_html NULL; you can pass HTML later.
+ */
+async function upsertYDocToDB(docId, ydoc) {
+  const update = Y.encodeStateAsUpdate(ydoc);
+  const buffer = Buffer.from(update);
+  // 1) try UPDATE
+  const updated = await updateCommonApiCall({
+    tableName: 'global_editor_doc_data',
+    column: ['y_state = $1', 'updated_at = now()'],
+    value: [buffer],
+    whereCondition: `id = '${docId}'`,
+    returnColumnName: 'id',
+  });
+
+  if (updated && updated.length > 0) {
+    return; // row existed, done
+  }
+
+  // 2) no row -> INSERT
+  await insertCommonApiCall({
+    tableName: 'global_editor_doc_data',
+    column: ['id', 'y_state', 'doc_html'],
+    alias: ['$1', '$2', '$3'],
+    values: [docId, buffer, null],
+  });
+}
+
+async function upsertYDocHtmlToDB(docId, html) {
+  // 1) try UPDATE
+  const updated = await updateCommonApiCall({
+    tableName: 'global_editor_doc_data',
+    column: ['doc_html = $1', 'updated_at = now()'],
+    value: [html],
+    whereCondition: `id = '${docId}'`,
+    returnColumnName: 'id',
+  });
+
+  if (updated && updated.length > 0) {
+    return; // row existed, done
+  }
+}
+
+/**
+ * Attach a debounced autosave to a Y.Doc
+ */
+function attachAutosave(docId, ydoc) {
+  ydoc.on('update', () => {
+    // debounce: save 2s after last change
+    if (saveTimers.has(docId)) {
+      clearTimeout(saveTimers.get(docId));
+    }
+
+    const t = setTimeout(() => {
+      upsertYDocToDB(docId, ydoc).catch(err =>
+          console.error('Error autosaving YDoc to DB', err),
+      );
+    }, 2000);
+
+    saveTimers.set(docId, t);
+  });
+}
+
+
 const app = express();
-app.use(cors());
+
+app.use(
+    cors({
+      origin: '*',
+    }),
+);
 app.use(function (req, res, next) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
@@ -93,14 +194,16 @@ globalEditorNamespace.on('connection', (socket) => {
     }
   });
 
-  // when a collab client joins a Yjs doc room
   // Client joins a Yjs document
-  socket.on('joinYDoc', (docId) => {
+  socket.on('joinYDoc', async (docId) => {
     console.log(`Client ${userID} joining YDoc: ${docId}`);
     socket.join(docId);
     joinedYDocs.add(docId);
 
     const ydoc = getYDoc(docId);
+
+    // 🔹 ensure we have the latest state from DB
+    await loadYDocFromDB(docId, ydoc);
 
     // Send the FULL current state of the Y.Doc to this client
     try {
@@ -109,6 +212,11 @@ globalEditorNamespace.on('connection', (socket) => {
     } catch (e) {
       console.error('Error encoding Yjs state for joinYDoc', e);
     }
+  });
+
+
+  socket.on('yjs-save-html', async ({ docId, html }) => {
+    await upsertYDocHtmlToDB(docId, html);
   });
 
   // Receive Yjs document updates from a client
@@ -163,69 +271,105 @@ globalEditorNamespace.on('connection', (socket) => {
 
   // --- Disconnect cleanup ---
   socket.on("disconnect", () => {
-    // Optional: clean up awareness so cursors disappear when a client leaves
-    joinedYDocs.forEach((docId) => {
-      const awareness = awarenessStates.get(docId);
-      if (awareness) {
-        try {
-          awareness.removeStates([socket.id], 'disconnect');
-          // Broadcast removed awareness
-          const update = awarenessProtocol.encodeAwarenessUpdate(awareness, [socket.id]);
-          socket.to(docId).emit('yjs-awareness', { docId, update });
-        } catch (e) {
-          console.error('Error cleaning up awareness on disconnect', e);
-        }
-      }
-    });
+    // joinedYDocs.forEach((docId) => {
+    //   const awareness = awarenessStates.get(docId);
+    //   if (awareness) {
+    //     try {
+    //       awareness.removeAwarenessStates([socket.id], 'disconnect');
+    //       const update = awarenessProtocol.encodeAwarenessUpdate(awareness, [socket.id]);
+    //       socket.to(docId).emit('yjs-awareness', { docId, update });
+    //     } catch (e) {
+    //       console.error('Error cleaning up awareness on disconnect', e);
+    //     }
+    //   }
+    // });
 
     delete clients[userID];
   });
-
 });
 
 // Set storage engine for multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    let uploadPath = `${uploadDirPath}/attachments/${req?.query?.docId}/`;
+    // docId comes from URL params: /:docId/:name
+    const docId = req.params.docId || req.query.docId || req.body.docId;
+
+    if (!docId) {
+      return cb(new Error('Missing docId'), null);
+    }
+
+    const uploadPath = `${uploadDirPath}/attachments/${docId}/`;
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
       fs.chmodSync(uploadPath, 0o755);
     }
+
     cb(null, uploadPath); // Specify the upload directory
   },
   filename: (req, file, cb) => {
-    cb(null, req?.query?.name); // Use the original file name
+    // use :name param if provided, fallback to original file name
+    const name = req.params.name || req.query.name || file.originalname;
+    cb(null, name);
   },
 });
 
 const upload = multer({ storage });
 
-// Endpoint for file upload
-app.post('/global-editor-api/actionToUploadEditorAttachmentApiCall', upload.single('attachment'), (req, res) => {
-  // Handle the uploaded file here.
-  const file = req.file;
-  if (!file) {
-    return res.status(400).send('No file uploaded.');
-  }
-  // You can save the file information or perform other operations here.
-  res.send('File uploaded successfully.');
-});
+app.post(
+    '/global-editor-api/actionToUploadEditorAttachmentApiCall/:docId/:name',
+    upload.single('attachment'),
+    (req, res) => {
+      const file = req.file;
+      const { docId, name } = req.params;
 
-app.get('/global-editor-api/actionToGetEditorAttachmentApiCall/:docId/:fileId', (req, res) => {
-  const { docId, fileId } = req.params;
-  let uploadPath = `${uploadDirPath}/attachments/${docId}`;
-  const filePath = path.join(uploadPath, fileId);
+      if (!file) {
+        return res
+            .status(400)
+            .json({ success: false, message: 'No file uploaded.' });
+      }
+      if (!docId) {
+        return res
+            .status(400)
+            .json({ success: false, message: 'Missing docId.' });
+      }
+      if (!name) {
+        return res
+            .status(400)
+            .json({ success: false, message: 'Missing name.' });
+      }
 
-  // Send the file to the client
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      console.error('Error sending file:', err);
-      res.status(err.status).end();
-    } else {
-      console.log('File sent:', filePath);
-    }
-  });
-});
+      const fileId = name;
+
+      const baseUrl =
+          process.env.PUBLIC_BACKEND_URL || 'https://backend.timebox.ai';
+
+      const url = `${baseUrl}/global-editor-api/actionToGetEditorAttachmentApiCall/${docId}/${fileId}`;
+
+      return res.json({
+        success: true,
+        fileId,
+        url,
+      });
+    },
+);
+
+app.get(
+    '/global-editor-api/actionToGetEditorAttachmentApiCall/:docId/:fileId',
+    (req, res) => {
+      const { docId, fileId } = req.params;
+      const uploadPath = `${uploadDirPath}/attachments/${docId}`;
+      const filePath = path.join(uploadPath, fileId);
+
+      res.sendFile(filePath, (err) => {
+        if (err) {
+          console.error('Error sending file:', err);
+          res.status(err.status || 500).end();
+        } else {
+          console.log('File sent:', filePath);
+        }
+      });
+    },
+);
 
 app.post('/global-editor-api/uploadEditorTestFileApiCall', (req, res) => {
   const { htmlData,docId } = req.body;

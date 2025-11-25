@@ -15,6 +15,19 @@ const ITEMS = [
     { group: 'Style', label: 'Code Block',    run: ({ editor }) => editor.chain().focus().toggleCodeBlock().run() },
     // --- Insert ---
     { group: 'Insert', label: 'Separator',    run: ({ editor }) => editor.chain().focus().setHorizontalRule().run() },
+    {
+        group: 'Insert',
+        label: 'Table',
+        run: ({ editor }) => {
+            const chain = editor.chain().focus();
+            // only run if table extension is loaded
+            if (typeof chain.insertTable === 'function') {
+                chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+                return true;
+            }
+            return false;
+        },
+    },
     // --- Upload ---
     {
         group: 'Upload', label: 'Image', run: ({editor}) => {

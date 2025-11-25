@@ -29,6 +29,8 @@ import Collaboration from '@tiptap/extension-collaboration'
 import * as awarenessProtocol from 'y-protocols/awareness'
 import io from 'socket.io-client'
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
+import DragHandle from '@tiptap/extension-drag-handle'
+import {createSelectionToolbar, wireSelectionToolbar} from "./selectionToolbar.js";
 
 const FontStyle = TextStyle.extend({
     addAttributes() {
@@ -62,27 +64,110 @@ const FontCommands = Extension.create({
 
 
 export function createEditorIframe(doc, editorId, options = {}) {
-    const {width = 900,
-        tools = 'all',
+    const {
+        width = 0,
+        tools = [],
+        showFloatingToolbar = false,
         baseServerUrl = 'https://backend.timebox.ai/global-editor-api',
         mainEditorDocumentId,
     } = options
 
-    doc.open()
-    doc.write(`<!doctype html>
+    const isFirefoxExtension =
+        typeof window !== 'undefined' &&
+        window.location &&
+        window.location.protocol === 'moz-extension:'
+
+    if (isFirefoxExtension) {
+        // ⚠️ IMPORTANT: DO NOT USE doc.open/write in Firefox extension
+
+        // Clear existing contents
+        if (doc.body) {
+            while (doc.body.firstChild) {
+                doc.body.removeChild(doc.body.firstChild)
+            }
+        }
+
+        // Ensure <html>, <head>, <body> exist
+        let htmlEl = doc.documentElement
+        if (!htmlEl) {
+            htmlEl = doc.createElement('html')
+            doc.appendChild(htmlEl)
+        }
+
+        let head = doc.querySelector('head')
+        if (!head) {
+            head = doc.createElement('head')
+            htmlEl.appendChild(head)
+        }
+
+        let body = doc.querySelector('body')
+        if (!body) {
+            body = doc.createElement('body')
+            htmlEl.appendChild(body)
+        }
+
+        body.className = 'doc_editor_body_main'
+        body.id = 'main_page'
+
+        // Basic meta tags
+        const metaCharset = doc.createElement('meta')
+        metaCharset.setAttribute('charset', 'utf-8')
+        head.appendChild(metaCharset)
+
+        const metaViewport = doc.createElement('meta')
+        metaViewport.name = 'viewport'
+        metaViewport.content = 'width=device-width,initial-scale=1'
+        head.appendChild(metaViewport)
+
+        // Loader
+        const loaderDiv = doc.createElement('div')
+        loaderDiv.id = 'ge_editor_loader'
+        loaderDiv.className = 'ge_editor_loader'
+        loaderDiv.textContent = 'Loading editor...'
+
+        // Outer container + editor container
+        const outerMost = doc.createElement('div')
+        if(!showFloatingToolbar){
+            outerMost.className = 'ge_outer_most_container no_floating_toolbar'
+        } else{
+            outerMost.className = 'ge_outer_most_container'
+        }
+
+        const editorContainer = doc.createElement('div')
+        editorContainer.id = 'editor_main_container'
+        editorContainer.className = 'doc_placeholder_container'
+        editorContainer.style.width = width ? Number(width) + 'px' : '100%'
+
+        // Toolbar container (top)
+        const toolbarDiv = doc.createElement('div')
+        toolbarDiv.id = 'ge_toolbar_main_element'
+        body.appendChild(toolbarDiv)
+
+        outerMost.appendChild(editorContainer)
+        body.appendChild(loaderDiv)
+        body.appendChild(outerMost)
+    } else {
+        // ========== LEGACY VERSION (CHROME + NORMAL WEB + CHROME EXT) ==========
+        doc.open()
+        doc.write(`<!doctype html>
     <html>
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width,initial-scale=1">
         </head>
         <body class="doc_editor_body_main" id="main_page">
-            <div id="ge_toolbar_container_at_top" class="ge_tool_bar_container_at_top ge_above_the_editor global_editor_toolbar"></div>
-            <div class="ge_outer_most_container live_editing_mode">
-              <div id="editor_main_container" class="doc_placeholder_container" style="width:${Number(width)}px"></div>
-            </div>
+            <div id="ge_editor_loader" class="ge_editor_loader">Loading editor...</div>
+            <div id="ge_toolbar_main_element"></div>
+            <div class="ge_outer_most_container ${!showFloatingToolbar ? 'no_floating_toolbar' : ''}">
+              <div id="editor_main_container" 
+                   class="doc_placeholder_container" 
+                   style="width:${width ? Number(width) + 'px' : '100%'}">
+              </div>
+           </div>
         </body>
     </html>`)
-    doc.close()
+        doc.close()
+    }
 
     const docId = mainEditorDocumentId || editorId;
 
@@ -97,16 +182,20 @@ export function createEditorIframe(doc, editorId, options = {}) {
     const ydoc = new Y.Doc();
     const awareness = new awarenessProtocol.Awareness(ydoc);
     const userName = options?.userName || `Guest-${Date.now() % 1000000}`;
-    const userColor = options?.userColor || '#' + Math.floor(Math.random() * 16777215).toString(16);
+    const userColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
+    const loader = doc.getElementById('ge_editor_loader');
     awareness.setLocalStateField('user', {
         name: userName,
         color: userColor,
     });
 
+    window.addEventListener('beforeunload', () => {
+        awareness.setLocalState(null); // marks this client as offline
+    });
+
     awareness.on('update', ({ added, updated, removed }, origin) => {
         const changed = added.concat(updated).concat(removed);
-        if (changed.length === 0) return;
-
+        if (!changed.length) return;
         const update = awarenessProtocol.encodeAwarenessUpdate(awareness, changed);
         socket.emit('yjs-awareness', { docId, update });
     });
@@ -137,7 +226,6 @@ export function createEditorIframe(doc, editorId, options = {}) {
 
 
     socket.on('connect', () => {
-        console.log('[YJS] connected to backend, joining doc', docId);
         socket.emit('joinYDoc', docId);
     });
 
@@ -160,20 +248,13 @@ export function createEditorIframe(doc, editorId, options = {}) {
         } catch (e) {
             console.error('Error applying Yjs update', e);
         }
+        if (loader) loader.style.display = 'none';
     });
 
     // styles
     const style = doc.createElement('style')
     style.textContent = `${CSS}${TIPTAPCSS}`;
     doc.head.appendChild(style)
-
-    // const DragHandleExt = Extension.create({
-    //     name: 'dragHandleExt',
-    //     addProseMirrorPlugins() {
-    //         // adjust gutterLeft/gutterTop as needed
-    //         return [DragHandle(openSlashProgrammatically, { gutterLeft: -53, gutterTop: -1 })]
-    //     },
-    // })
 
     // editor
     const el = doc.getElementById('editor_main_container')
@@ -207,6 +288,22 @@ export function createEditorIframe(doc, editorId, options = {}) {
         Table.configure({ resizable: true }),
         CustomTableHeader,
         TableRow,
+        DragHandle.configure({
+            render: () => {
+                const element = document.createElement('div')
+                // Use as a hook for CSS to insert an icon
+                element.classList.add('custom-drag-handle')
+                element.classList.add('tiptap-button')
+                element.classList.add('tiptap-menu-button')
+                element.innerHTML = `
+                <svg width="24" height="24" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="9" cy="5" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="9" cy="19" r="2"></circle>
+                  <circle cx="15" cy="5" r="2"></circle><circle cx="15" cy="12" r="2"></circle><circle cx="15" cy="19" r="2"></circle>
+                </svg>
+                `
+                return element
+            },
+        }),
         CustomTableCell,
         TableHoverOverlay,
         ResizableImage,
@@ -222,63 +319,108 @@ export function createEditorIframe(doc, editorId, options = {}) {
     const editor = new Editor({
         element: el,
         editorProps: {
-            attributes: { class: 'global_editor_edit_main_area block_content_editable_wrapper', id:editorId},
+            attributes: {
+                class: 'global_editor_edit_main_area block_content_editable_wrapper',
+                id: editorId,
+            },
+            handlePaste(view, event, slice) {
+                const items = event.clipboardData?.items || [];
+                let handled = false;
+
+                for (const item of items) {
+                    if (item.type && item.type.startsWith('image/')) {
+                        const file = item.getAsFile();
+                        if (!file) continue;
+
+                        event.preventDefault();
+                        handled = true;
+
+                        // upload + insert image node
+                        uploadPastedImage(file);
+                        break;
+                    }
+                }
+
+                // if we handled an image, stop the default paste
+                if (handled) return true;
+
+                // otherwise, let Tiptap handle normal text/HTML paste
+                return false;
+            },
         },
         extensions,
         autofocus: true,
-        content: '<p></p>',
         injectCSS: false,
     })
 
-    // safer: never split on a NodeSelection
-    function openSlashProgrammatically() {
-        const { state } = editor
-        const $from = state.selection.$from
-        const depth = $from.depth
-        const blockPos = $from.before(depth)
-        const block = state.doc.nodeAt(blockPos)
+    const uploadPastedImage = async (file) => {
+        try {
+            const formData = new FormData();
+            const fileName = `${docId}_${Date.now()}_${file.name}`;
+            formData.append('attachment', file);
+            formData.append('docId', docId);
+            formData.append('name', fileName);
 
-        // fallback
-        if (!block) {
-            editor.chain().focus().insertContent('/').run()
-            return
+            const uploadUrl = `${baseServerUrl}/actionToUploadEditorAttachmentApiCall/${docId}/${fileName}`;
+
+            const response = await fetch(uploadUrl, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                console.error('Image upload failed', response.statusText);
+                return;
+            }
+
+            const data = await response.json();
+            if (!data || !data.url) {
+                console.error('Upload response missing URL', data);
+                return;
+            }
+
+            const src = data.url;
+
+            editor
+                .chain()
+                .focus()
+                .setImage({ src, alt: file.name || 'Image' })
+                .run();
+        } catch (err) {
+            console.error('Error uploading pasted image', err);
         }
+    };
 
-        const hasContent =
-            (block.textContent && block.textContent.trim().length > 0) ||
-            block.childCount > 0
+    function setupSave(editor, socket, docId) {
+        const save = () => {
+            const html = editor.getHTML();
+            socket.emit('yjs-save-html', { docId, html });
+        };
 
-        const endOfBlock = blockPos + block.nodeSize // pos *after* the block
+        // Ctrl+S / Cmd+S inside iframe
+        doc.addEventListener('keydown', (event) => {
+            // for some browsers event.key is 's', some 'S'
+            const key = event.key?.toLowerCase();
+            if ((event.ctrlKey || event.metaKey) && key === 's') {
+                event.preventDefault();
+                save();
+            }
+        });
 
-        const chain = editor.chain().focus()
-
-        if (hasContent) {
-            chain
-                // move cursor to the end of the current block (convert NodeSelection -> TextSelection)
-                .setTextSelection(endOfBlock - 1)
-                // insert an empty paragraph *after* the block
-                .insertContentAt(endOfBlock, { type: 'paragraph' })
-                // place caret inside that new paragraph
-                .setTextSelection(endOfBlock + 1)
-                // type the slash to open the menu
-                .insertContent('/')
-                .run()
-        } else {
-            // block is empty: just type '/'
-            chain.insertContent('/').run()
-        }
+        return save;
     }
 
-    const toolbarHost = doc.getElementById('ge_toolbar_container_at_top');
-    createToolbar(toolbarHost) // your function from the message
+    const toolbarHost = doc.getElementById('ge_toolbar_main_element');
 
-    // 2) insert it at the top of your wrap
-    const wrap = doc.getElementById('wrap') || doc.body
-    wrap.insertBefore(toolbarHost, wrap.firstChild)
+    if(showFloatingToolbar) {
+        createSelectionToolbar(toolbarHost,tools);
+        wireSelectionToolbar(editor, toolbarHost);
+    } else {
+        createToolbar(toolbarHost,tools);
+        wireToolbar(editor, toolbarHost);
+    }
 
-    // 3) connect actions/state to TipTap
-    wireToolbar(editor, toolbarHost)
-
-    return {editor, toolbar:toolbarHost}
+    const save = setupSave(editor, socket, docId);
+    return { editor, toolbar: toolbarHost, save }
 }
 

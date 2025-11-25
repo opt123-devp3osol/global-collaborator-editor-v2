@@ -319,7 +319,7 @@ export const TIPTAPCSS = `
 .tiptap.ProseMirror ul[data-type=taskList] li {
     display: flex;
     flex-direction: row;
-    align-items: flex-start
+    align-items: center;
 }
 
 .tiptap.ProseMirror ul[data-type=taskList] li:not(:has(>p:first-child)) {
@@ -337,7 +337,6 @@ export const TIPTAPCSS = `
 
 .tiptap.ProseMirror ul[data-type=taskList] li label {
     position: relative;
-    padding-top: .375rem;
     padding-right: .5rem
 }
 
@@ -1400,7 +1399,9 @@ export const TIPTAPCSS = `
     width: .5rem;
     height: .5rem
 }
-
+.custom-drag-handle{
+   cursor: grab;
+}
 .tiptap-button:has(>svg):not(:has(>:not(svg))) {
     gap: .125rem
 }
@@ -1732,6 +1733,7 @@ span.suggestion.is-empty:after {
 .ProseMirror table th {
   border: 2px solid #ced4da;
   box-sizing: border-box;
+  vertical-align: baseline!important;
   min-width: 8em;
   min-height: 5em;
   padding: 3px 5px;

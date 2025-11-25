@@ -19,6 +19,21 @@ export const ResizableImage = Node.create({
         }
     },
 
+    addCommands() {
+        return {
+            setImage:
+                attrs =>
+                    ({ chain }) => {
+                        return chain()
+                            .insertContent({
+                                type: this.name, // "image"
+                                attrs,
+                            })
+                            .run();
+                    },
+        };
+    },
+
     parseHTML() {
         return [
             { tag: 'div.node-image' },

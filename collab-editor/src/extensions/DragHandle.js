@@ -6,7 +6,6 @@ export default function DragHandle(openSlashFn, { gutterLeft = 0, gutterTop = 0 
     let view = null
     let container = null
     let handle = null
-    let plusBtn = null
     let dotsBtn = null
     let currentBlock = null
     let currentPos = null
@@ -38,19 +37,6 @@ export default function DragHandle(openSlashFn, { gutterLeft = 0, gutterTop = 0 
         group.setAttribute('data-orientation', 'horizontal')
         group.setAttribute('role', 'group')
 
-        // "+" button (opens slash)
-        const plus = d.createElement('button')
-        plus.className = 'tiptap-button'
-        plus.type = 'button'
-        plus.setAttribute('data-style', 'ghost')
-        plus.setAttribute('tabindex', '-1')
-        plus.setAttribute('data-weight', 'small')
-        plus.setAttribute('aria-label', 'Insert block')
-        plus.innerHTML = `
-<svg width="24" height="24" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-  <path d="M13 5C13 4.448 12.552 4 12 4s-1 .448-1 1v6H5c-.552 0-1 .448-1 1s.448 1 1 1h6v6c0 .552.448 1 1 1s1-.448 1-1v-6h6c.552 0 1-.448 1-1s-.448-1-1-1h-6V5z"></path>
-</svg>`.trim()
-
         // menu/drag dots (also draggable)
         const dots = d.createElement('button')
         dots.className = 'tiptap-button tiptap-menu-button'
@@ -62,26 +48,24 @@ export default function DragHandle(openSlashFn, { gutterLeft = 0, gutterTop = 0 
         dots.setAttribute('draggable', 'true')
         dots.setAttribute('aria-label', 'Drag block menu')
         dots.innerHTML = `
-<svg width="24" height="24" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="9" cy="5" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="9" cy="19" r="2"></circle>
-  <circle cx="15" cy="5" r="2"></circle><circle cx="15" cy="12" r="2"></circle><circle cx="15" cy="19" r="2"></circle>
-</svg>`.trim()
+        <svg width="24" height="24" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="9" cy="5" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="9" cy="19" r="2"></circle>
+          <circle cx="15" cy="5" r="2"></circle><circle cx="15" cy="12" r="2"></circle><circle cx="15" cy="19" r="2"></circle>
+        </svg>`.trim()
 
-        group.appendChild(plus)
         group.appendChild(dots)
         drag.appendChild(group)
         outer.appendChild(drag)
 
-        return { outer, drag, plus, dots }
+        return { outer, drag, dots }
     }
 
     const attachDom = () => {
         const ownerDoc = view.dom.ownerDocument
         const body = ownerDoc.body
-        const { outer, drag, plus, dots } = buildDom(ownerDoc)
+        const { outer, drag, dots } = buildDom(ownerDoc)
         container = outer
         handle = drag
-        plusBtn = plus
         dotsBtn = dots
         body.appendChild(container)
 
@@ -110,7 +94,7 @@ export default function DragHandle(openSlashFn, { gutterLeft = 0, gutterTop = 0 
 
         // ---- Drag handlers ----
         const onMouseDown = (e) => {
-            // Compute if missing (don’t bail early)
+            // Compute if missing (don't bail early)
             if (!view) return
             if (currentPos == null) {
                 const ok = ensureCurrentFromSelectionOrPointer(e.clientX, e.clientY)
@@ -128,31 +112,70 @@ export default function DragHandle(openSlashFn, { gutterLeft = 0, gutterTop = 0 
             }
         }
 
+        const onDragStart = (e) => {
+            if (!view) return
+
+            // Make sure we know which block the handle belongs to
+            if (currentPos == null || !currentBlock) {
+                const ok = ensureCurrentFromSelectionOrPointer(e.clientX, e.clientY)
+                if (!ok) return
+            }
+
+            const sel = setNodeSelection()
+            if (!sel) return
+
+            isDragging = true
+
+            // 🔥 hide the handle UI while dragging
+            if (handle) {
+                handle.style.opacity = '0'
+                handle.style.pointerEvents = 'none'
+            }
+
+            const { state } = view
+            const slice = sel.content()
+
+            // Tell ProseMirror what we're dragging (move, not copy)
+            view.dragging = { slice, move: true }
+
+            if (e.dataTransfer) {
+                e.dataTransfer.effectAllowed = 'move'
+                e.dataTransfer.setData('application/x-prosemirror-drag', 'block')
+                e.dataTransfer.setData(
+                    'text/plain',
+                    state.doc.textBetween(sel.from, sel.to, '\n')
+                )
+
+                // Use the whole block as drag preview (not the small handle)
+                const blockDom = currentBlock || view.nodeDOM(sel.from)
+                if (blockDom instanceof HTMLElement) {
+                    const rect = blockDom.getBoundingClientRect()
+                    e.dataTransfer.setDragImage(blockDom, rect.width / 2, 10)
+                }
+            }
+        }
+
+        const onDragEnd = () => {
+                isDragging = false
+                if (view) {
+                    view.dragging = null
+                }
+                // show handle again
+                if (handle) {
+                    handle.style.opacity = '1'
+                    handle.style.pointerEvents = 'auto'
+                }
+                // re-position on its new block
+                if (currentBlock) {
+                    updatePosition(currentBlock)
+                }
+            }
+
             // Bind to both draggable elements (outer handle + dots)
         ;[handle, dots].forEach((el) => {
             el.addEventListener('mousedown', onMouseDown)
             // el.addEventListener('dragstart', onDragStart)
             // el.addEventListener('dragend', onDragEnd)
-        })
-
-        // "+" opens slash
-        plusBtn.addEventListener('mousedown', (e) => {
-            if (!view) return
-            if (currentPos == null) {
-                const ok = ensureCurrentFromSelectionOrPointer(e.clientX, e.clientY)
-                if (!ok) return
-            }
-            e.preventDefault()
-            e.stopPropagation()
-            view.focus()
-            setNodeSelection()
-        })
-
-        plusBtn.addEventListener('click', (e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            if (typeof openSlashFn === 'function') openSlashFn()
-            else if (view && view.chain) view.chain().focus().insertContent('/').run()
         })
 
         // Keep handle stable on hover
@@ -166,7 +189,7 @@ export default function DragHandle(openSlashFn, { gutterLeft = 0, gutterTop = 0 
             mouseDownTimeout = null
         }
         if (container && container.parentNode) container.parentNode.removeChild(container)
-        container = handle = plusBtn = dotsBtn = null
+        container = handle = dotsBtn = null
         if (lastSelectedDom && lastSelectedDom.classList) {
             lastSelectedDom.classList.remove('ProseMirror-selectednode')
         }
@@ -276,7 +299,7 @@ export default function DragHandle(openSlashFn, { gutterLeft = 0, gutterTop = 0 
         // Temporarily let events pass through the handle to hit-test what's underneath
         const prev = handle.style.pointerEvents
         handle.style.pointerEvents = 'none'
-        const el = d.elementFromPoint(clientX, clientY)
+        const el = d.elementFromPoint(clientX + 30, clientY)
         handle.style.pointerEvents = prev
 
         if (!el) return null
@@ -285,14 +308,6 @@ export default function DragHandle(openSlashFn, { gutterLeft = 0, gutterTop = 0 
 
     // Ensure currentBlock/currentPos are set; try selection, then pointer coords
     const ensureCurrentFromSelectionOrPointer = (clientX, clientY) => {
-        // 1) Try current selection → block
-        const found = blockFromSelection()
-        if (found) {
-            currentBlock = found.blk
-            currentPos = found.posBefore
-            return true
-        }
-        // 2) Try pointer coords → block
         const blk = blockUnderPointer(clientX, clientY)
         if (blk) {
             currentBlock = blk
@@ -364,10 +379,7 @@ export default function DragHandle(openSlashFn, { gutterLeft = 0, gutterTop = 0 
 
             // Seed handle from current selection so it's ready before mousemove
             try {
-                const seeded = ensureCurrentFromSelectionOrPointer(
-                    0,
-                    0
-                )
+                const seeded = ensureCurrentFromSelectionOrPointer(0, 0)
                 if (seeded && currentBlock) updatePosition(currentBlock)
             } catch {}
 
@@ -395,7 +407,6 @@ export default function DragHandle(openSlashFn, { gutterLeft = 0, gutterTop = 0 
                             currentPos = null
                         }
                     } catch (err) {
-                        // eslint-disable-next-line no-console
                         console.warn('Error updating drag handle:', err)
                     }
                 },

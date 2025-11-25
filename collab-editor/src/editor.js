@@ -18,7 +18,7 @@ export class TextEditor {
             mainEditorDocumentId = documentId || null
 
             if (this.iframeDocument) {
-                const { editor, toolbar } = createEditorIframe(this.iframeDocument, editorId, {
+                const { editor, toolbar,save  } = createEditorIframe(this.iframeDocument, editorId, {
                     ...options,
                     baseServerUrl,
                     mainEditorDocumentId: documentId,
@@ -29,6 +29,9 @@ export class TextEditor {
                 if (this.options.makeEditorReadOnly) {
                     this.applyReadOnlyMode();
                 }
+                editor.on('blur', () => {
+                    save();
+                });
             }
         } catch (error) {
             console.error(error.message)
@@ -183,7 +186,7 @@ export class TextEditor {
 
     getContent(format = 'text') {
         if (!this.editor) return ''
-        if (format?.toLowerCase() === 'html') return this.editor.getJSON()
+        if (format?.toLowerCase() === 'html') return this.editor.getHTML()
         return this.editor.getText()
     }
 
@@ -199,6 +202,13 @@ export class TextEditor {
         this.iframeDocument.body.style.setProperty('--editor-outer-width', this.iframeDocumentWidth + 'px')
     }
 
+
+    focusEditor() {
+        this.editor.chain().focus('end').run();
+        // optional: ensure the editor is visible
+        this.editor.view.dom.scrollIntoView({block:'nearest'});
+    }
+
     static create(iframeId, editorId, documentId, options) {
         try {
             return new TextEditor(iframeId, editorId, documentId, options)
@@ -207,3 +217,5 @@ export class TextEditor {
         }
     }
 }
+
+globalThis.GlobalTextEditorLib = TextEditor;

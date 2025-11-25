@@ -90,7 +90,12 @@ export const CSS = `
                     .global_editor_toolbar_button_pane{overflow:unset!important}
 
                     
-                    .global_editor_toolbar .global_editor_toolbar_button_pane{display:inline-flex;margin:auto;width:auto;background:0 0;border:0}
+                    .global_editor_toolbar .global_editor_toolbar_button_pane{display: flex;
+                            margin: auto;
+                            width: auto;
+                            background: 0 0;
+                            border: 0;
+                            align-items: center;}
                     .global_editor_toolbar .global_editor_toolbar_button_pane:before{display:none}
                     .global_editor_button_group.event_group_tool button svg{width:auto;height:auto}
                     .global_editor_toolbar_button_pane button:hover{background:#efefef}
@@ -1092,10 +1097,12 @@ body.doc_editor_body_main {
     position: relative;
 }
 
-.ge_outer_most_container.live_editing_mode {
-padding-top: 50px;
+.ge_outer_most_container {
 height: calc(100vh - 55px);
 overflow:auto;
+}
+.ge_outer_most_container.no_floating_toolbar{
+margin-top: 50px;
 }
 .ge_outer_most_container {
   position: relative;
@@ -1120,8 +1127,9 @@ img.ProseMirror-separator {
 }
 
 .doc_placeholder_container{
-height:100%;
-margin:auto;
+    height:100%;
+    width:100%;
+    margin:auto;
 }
 .ge_tool_bar_container_at_top.global_editor_toolbar{
     background:#fff;
@@ -1135,6 +1143,44 @@ margin:auto;
     height: 50px;
     z-index: 9;
 }
+.ge_link_bubble {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  font-size: 13px;
+  z-index: 9999;
+}
+
+.ge_link_bubble.open {
+  display: flex;
+}
+
+.ge_link_input {
+  border: none;
+  outline: none;
+  min-width: 220px;
+  font-size: 13px;
+}
+
+.ge_link_bubble button {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.ge_link_bubble .ge_link_apply {
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-weight: 500;
+  background: #111827;
+  color: #ffffff;
+}
 
 .global_editor_toolbar_button_pane button{
     overflow:unset!important;
@@ -1144,10 +1190,21 @@ margin:auto;
     justify-content:center;
     gap:15px;
 }
+
+
 #editor_tool_main_header_container_items .tool_bar_wrap .global_editor_button .tool_bar_wrap_button_text {
     color: #1A1F22;
     font-size: 13px;
 }
+.tool_bar_wrap.active button {
+    background: #dbdbdb;
+}
+
+
+
+
+
+
 
 #editor_tool_main_header_container_items .tool_bar_wrap button {
     display: grid;
@@ -1197,7 +1254,106 @@ z-index:999999;
 /* Optional: dropdown items */
 .dropdown-item { cursor: pointer; padding: 6px 10px; }
 .dropdown-item.active { background: #f3f4f6; }
+.ge_editor_loader{
+  position:absolute;
+        top:50%;
+        left:50%;
+        transform:translate(-50%, -50%);
+        font-size:14px;
+        padding:10px 20px;
+        background:#fff;
+        border-radius:6px;
+        z-index: 9999;
+        box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+ .ge_toolbar_main_element {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+ .ge_user_badge_container{
+    margin: auto;
+    display: flex;
+    gap: 2px;
+ }
+  .ge_user_badge {
+    margin: auto;     
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+    text-transform: uppercase;
+    cursor: default;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.06);
+    flex-shrink: 0;
+  }
+.ge_selection_toolbar {
+      position: fixed;
+      z-index: 9999;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+      padding: 2px;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      font-size: 12px;
+      transform: translate3d(-9999px, -9999px, 0);
+      opacity: 0;
+      top:0px;
+      pointer-events: none;
+      transition: opacity 120ms ease-out, transform 120ms ease-out;
+      backdrop-filter: blur(10px);
+      white-space: nowrap;
+    }
 
-
+    .ge_selection_toolbar.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .ge_selection_toolbar .global_editor_button_group.event_group_tool button svg {
+        width: 11px;
+    }
+   
+    .ge_selection_toolbar .global_editor_button .toolbar_selected_text{
+        font-size: 12px;
+    }
+    .ge_selection_toolbar .global_editor_button_group .dropdown-content .dropdown-item{
+      font-size: 12px;
+    }
+    .ge_selection_toolbar .global_editor_button_group .dropdown-button .color_button_toolbar{
+        width: 20px !important;
+        height: 20px !important;
+    }
+    .ge_selection_toolbar .global_editor_toolbar_button_pane button{
+        gap: 5px;
+    }
+    .ge_selection_toolbar .global_editor_toolbar_button_pane button{
+        margin: 0px;
+    }
+    .global_editor_toolbar_button_pane button, .global_editor_toolbar_button_pane input[type=color], .global_editor_toolbar_button_pane select{
+        width: 30px;
+        height: 30px;
+    }
+    .ge_selection_toolbar .ge_tooltip_wrapper{
+        top: auto;
+        bottom: 130%;
+    }
+    .ge_selection_toolbar .ge_tooltip_wrapper:after {
+        bottom: -3px;
+        left: 0;
+        right: 0;
+        top: auto;
+        transform: rotate(45deg);
+    }
+    .ge_selection_toolbar .global_editor_button_group.event_group_tool button svg.anchor_tag {
+     width: 8px;
+    }
 
 `
