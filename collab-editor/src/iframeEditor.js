@@ -31,6 +31,8 @@ import io from 'socket.io-client'
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import DragHandle from '@tiptap/extension-drag-handle'
 import {createSelectionToolbar, wireSelectionToolbar} from "./selectionToolbar.js";
+import Placeholder from '@tiptap/extension-placeholder'
+
 
 const FontStyle = TextStyle.extend({
     addAttributes() {
@@ -61,6 +63,46 @@ const FontCommands = Extension.create({
         }
     },
 })
+
+const DocWhitespaceCleaner = Extension.create({
+    name: 'docWhitespaceCleaner',
+
+    addStorage() {
+        return { cleaned: false }
+    },
+
+    onCreate() {
+        this.maybeClean()
+    },
+
+    onUpdate() {
+        this.maybeClean()
+    },
+
+    maybeClean() {
+        if (this.storage.cleaned) return
+
+        const { state } = this.editor
+        const doc = state.doc
+
+        const text = doc.textBetween(0, doc.content.size, '\n', '\n')
+
+        // If doc is completely empty: nothing to do (no stray space)
+        if (!text) {
+            this.storage.cleaned = false
+            return
+        }
+
+        // If doc is only whitespace (like that stray single space), clear it once
+        if (/^\s+$/.test(text)) {
+            this.editor.commands.clearContent(true)
+        }
+
+        // After first non-empty or cleared state, stop touching content
+        this.storage.cleaned = true
+    },
+})
+
 
 
 export function createEditorIframe(doc, editorId, options = {}) {
@@ -312,6 +354,13 @@ export function createEditorIframe(doc, editorId, options = {}) {
         FontStyle,
         Color,
         FontCommands,
+        Placeholder.configure({ // 👈 real placeholder
+            placeholder: "Write, type '/' for commands...",
+            includeChildren: false,
+            showOnlyCurrent: true,
+            showOnlyWhenEditable: true,
+            emptyNodeClass: 'is-empty',
+        }),
         Dropcursor,
         Gapcursor,
     ];
@@ -349,7 +398,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
             },
         },
         extensions,
-        autofocus: true,
+        autofocus: false,
         injectCSS: false,
     })
 

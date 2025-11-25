@@ -19,14 +19,46 @@ const ITEMS = [
         group: 'Insert',
         label: 'Table',
         run: ({ editor }) => {
-            const chain = editor.chain().focus();
-            // only run if table extension is loaded
-            if (typeof chain.insertTable === 'function') {
-                chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
-                return true;
-            }
-            return false;
-        },
+            // ensure table extension exists
+            if (typeof editor.commands.insertTable !== 'function') return false;
+
+            // 1) insert table
+            editor.chain().focus().insertTable({
+                rows: 3,
+                cols: 3,
+                withHeaderRow: true
+            }).run();
+
+            // 2) Defer focus to next microtask so wrapper/overlay can run
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const view = editor.view;
+                    const dom = view.dom;
+
+                    // find first cell
+                    const firstCell = dom.querySelector('table tr:first-child td, table tr:first-child th');
+                    if (!firstCell) return;
+
+                    try {
+                        // 3) compute position
+                        const pos = view.posAtDOM(firstCell, 0);
+
+                        // 4) force selection inside cell
+                        const { TextSelection } = editor.state.constructor;
+                        const tr = view.state.tr.setSelection(TextSelection.create(view.state.doc, pos));
+
+                        view.dispatch(tr);
+
+                        // 5) final focus
+                        editor.commands.focus();
+                    } catch (err) {
+                        console.error('Error focusing first cell after table insert:', err);
+                    }
+                });
+            });
+
+            return true;
+        }
     },
     // --- Upload ---
     {

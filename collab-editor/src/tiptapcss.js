@@ -792,6 +792,7 @@ export const TIPTAPCSS = `
 
 .is-empty:not(.with-slash)[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
     content: attr(data-placeholder)
+    font-style: italic;
 }
 
 .is-empty.with-slash[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {

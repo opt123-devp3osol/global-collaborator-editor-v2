@@ -514,8 +514,6 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
     });
 
 
-
-
     // --- Link bubble setup ---
     let linkBubble = null;
     let linkInput = null;
@@ -542,7 +540,7 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
         editor
             .chain()
             .focus()
-            .setHighlight({ color: 'rgba(56, 189, 248, 0.35)' })
+            .setHighlight({ color: 'rgb(98 41 255 / 15%)' })
             .run();
     }
 
