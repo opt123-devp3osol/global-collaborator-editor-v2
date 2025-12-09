@@ -2,10 +2,13 @@
 import { Extension } from '@tiptap/core'
 import { Plugin } from 'prosemirror-state'
 
+// Simple random ID generator
 function genChunk() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     let s = ''
-    for (let i = 0; i < 4; i++) s += chars[(Math.random() * chars.length) | 0]
+    for (let i = 0; i < 4; i++) {
+        s += chars[(Math.random() * chars.length) | 0]
+    }
     return s
 }
 
@@ -16,71 +19,98 @@ function genId() {
 export default Extension.create({
     name: 'blockId',
 
+    /**
+     * Attach a `data-block-id` attribute to block-level node types.
+     * Adjust the `types` list to match your schema if needed.
+     */
     addGlobalAttributes() {
         const types = [
-            'paragraph', 'heading', 'blockquote', 'codeBlock',
-            'bulletList', 'orderedList', 'listItem',
-            'taskList', 'taskItem',
-            'table', 'tableRow', 'tableCell', 'tableHeader',
-            'image', 'horizontalRule',
+            'paragraph',
+            'heading',
+            'blockquote',
+            'codeBlock',
+            'bulletList',
+            'orderedList',
+            'listItem',
+            'taskList',
+            'taskItem',
+            'table',
+            'tableRow',
+            'tableCell',
+            'tableHeader',
+            'image',
+            'horizontalRule',
         ]
 
-        return [{
-            types,
-            attributes: {
-                'data-block-id': {
-                    default: null,
-                    parseHTML: el => el.getAttribute('data-block-id'),
-                    renderHTML: attrs =>
-                        attrs['data-block-id']
-                            ? { 'data-block-id': attrs['data-block-id'] }
-                            : {},
+        return [
+            {
+                types,
+                attributes: {
+                    'data-block-id': {
+                        default: null,
+                        parseHTML: el => el.getAttribute('data-block-id'),
+                        renderHTML: attrs =>
+                            attrs['data-block-id']
+                                ? { 'data-block-id': attrs['data-block-id'] }
+                                : {},
+                    },
                 },
             },
-        }]
+        ]
     },
 
+    /**
+     * No commands – we don't manually poke the doc anymore.
+     */
     addCommands() {
-        return {
-            ensureBlockIds: () => ({ state, dispatch }) => {
-                if (!dispatch) return false
-                dispatch(state.tr.setMeta('blockId_touch', true))
-                return true
-            },
-        }
+        return {}
     },
 
+    /**
+     * Core logic: on every *doc-changing* transaction, ensure:
+     *  - every non-text node has a data-block-id
+     *  - duplicate IDs are fixed
+     *
+     * It only updates node attributes, never adds/removes nodes,
+     * never focuses or scrolls.
+     */
     addProseMirrorPlugins() {
         const SKIP_META = 'blockId_skip'
 
         return [
             new Plugin({
                 appendTransaction(transactions, oldState, newState) {
-                    // avoid loops
-                    if (transactions.some(tr => tr.getMeta(SKIP_META))) return
+                    // Avoid infinite loop when we apply our own transaction
+                    if (transactions.some(tr => tr.getMeta(SKIP_META))) {
+                        return
+                    }
 
-                    // run only when doc actually changed or we explicitly poked it
-                    const relevant = transactions.some(tr =>
-                        tr.docChanged || tr.getMeta('blockId_touch')
-                    )
-                    if (!relevant) return
+                    // Only run when the document actually changed
+                    const docChanged = transactions.some(tr => tr.docChanged)
+                    if (!docChanged) {
+                        return
+                    }
 
                     const tr = newState.tr
                     let changed = false
                     const seen = new Set()
 
                     newState.doc.descendants((node, pos) => {
+                        // Ignore text nodes completely
                         if (node.isText) return
 
-                        const oldId = node.attrs && node.attrs['data-block-id']
+                        const oldAttrs = node.attrs || {}
+                        const oldId = oldAttrs['data-block-id']
 
-                        // Need a new ID if missing OR already used.
+                        // If missing or duplicated, generate a new id
                         if (!oldId || seen.has(oldId)) {
                             const newId = genId()
-                            tr.setNodeMarkup(pos, undefined, {
-                                ...node.attrs,
+                            const newAttrs = {
+                                ...oldAttrs,
                                 'data-block-id': newId,
-                            })
+                            }
+
+                            tr.setNodeMarkup(pos, undefined, newAttrs)
                             seen.add(newId)
                             changed = true
                         } else {
@@ -92,15 +122,19 @@ export default Extension.create({
                         tr.setMeta(SKIP_META, true)
                         return tr
                     }
+
+                    // If nothing changed, return undefined (no extra transaction)
+                    return
                 },
             }),
         ]
     },
 
+    /**
+     * IMPORTANT:
+     * No onCreate logic that dispatches a transaction.
+     */
     onCreate() {
-        // seed IDs for initial content
-        this.editor.view.dispatch(
-            this.editor.state.tr.setMeta('blockId_touch', true),
-        )
+        // Intentionally empty — do NOT dispatch anything here.
     },
 })

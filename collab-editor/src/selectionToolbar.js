@@ -20,11 +20,15 @@ export function wireSelectionToolbar(editor, root) {
 
     const showAtSelection = () => {
         const { state, view } = editor;
-        const { selection } = state;
+        const { selection } = state
 
-        const { from, to } = selection;
-        if (from === to) {
+        const { from, to, empty  } = selection;
+        if (empty || from === to) {
             hide();
+            return;
+        }
+        const selectedText = state.doc.textBetween(from, to, "\n");
+        if (!selectedText || !selectedText.trim()) {
             return;
         }
 

@@ -2,6 +2,38 @@
 import { Extension } from '@tiptap/core'
 import Suggestion from '@tiptap/suggestion'
 
+const triggerImageUpload = (editor) => {
+    try {
+        const doc = editor?.view?.dom?.ownerDocument || document
+        const input = doc.createElement('input')
+        input.type = 'file'
+        input.accept = 'image/*'
+        input.style.position = 'fixed'
+        input.style.left = '-9999px'
+        doc.body.appendChild(input)
+
+        input.addEventListener('change', async () => {
+            const file = input.files?.[0]
+            input.remove()
+            if (!file) return
+
+            const uploader = editor?.storage?.uploadPastedImage
+            if (typeof uploader === 'function') {
+                await uploader(file)
+                return
+            }
+
+            // Fallback: insert as object URL if uploader is unavailable
+            const src = URL.createObjectURL(file)
+            editor.chain().focus().setImage?.({ src, alt: file.name || 'Image' }).run()
+        }, { once: true })
+
+        input.click()
+    } catch (err) {
+        console.error('Image upload trigger failed', err)
+    }
+}
+
 const ITEMS = [
     // --- Style ---
     { group: 'Style', label: 'Text',          run: ({ editor }) => editor.chain().focus().setParagraph().run() },
@@ -62,10 +94,9 @@ const ITEMS = [
     },
     // --- Upload ---
     {
-        group: 'Upload', label: 'Image', run: ({editor}) => {
-            const url = typeof prompt === 'function' ? prompt('Image URL') : null
-            if (url) editor.chain().focus().setImage?.({src: url}).run()
-        }
+        group: 'Upload',
+        label: 'Image',
+        run: ({ editor }) => triggerImageUpload(editor)
     },
 ]
 
@@ -94,11 +125,24 @@ export default Extension.create({
                     const positionMenu = (el, rectGetter) => {
                         const rect = rectGetter?.()
                         if (!rect) return
+                        const vw = (el.ownerDocument?.defaultView?.innerWidth) || window.innerWidth
+                        const vh = (el.ownerDocument?.defaultView?.innerHeight) || window.innerHeight
                         el.style.position = 'absolute'
                         el.style.left = '0px'
                         el.style.top  = '0px'
-                        el.style.zIndex = '1000'
-                        el.style.transform = `translate(${Math.round(rect.left)}px, ${Math.round(rect.bottom + 6)}px)`
+                        el.style.zIndex = '10001'
+                        // measure (ensure visible during measurement)
+                        const prevDisplay = el.style.display
+                        if (!el.offsetHeight) el.style.display = 'block'
+                        const menuRect = el.getBoundingClientRect()
+                        if (prevDisplay !== undefined) el.style.display = prevDisplay
+                        const belowY = Math.round(rect.bottom + 6)
+                        const aboveY = Math.round(rect.top - menuRect.height - 6)
+                        const fitsBelow = rect.bottom + 6 + menuRect.height <= vh
+                        const fitsAbove = rect.top - 6 - menuRect.height >= 0
+                        const y = fitsBelow || !fitsAbove ? belowY : aboveY
+                        const x = Math.min(Math.max(Math.round(rect.left), 8), Math.max(8, vw - menuRect.width - 8))
+                        el.style.transform = `translate(${x}px, ${y}px)`
                     }
 
                     const buildShell = (doc) => {
@@ -175,11 +219,62 @@ export default Extension.create({
                     let activeIndex = 0
                     let outsideClickHandler = null
                     let focusOutHandler = null
+                    let currentEditor = null
+                    let overlay = null
+
+                    const attachOverlay = (doc, onClose) => {
+                        if (overlay) return
+                        overlay = doc.createElement('div')
+                        overlay.className = 'tiptap-slash-overlay'
+                        Object.assign(overlay.style, {
+                            position: 'fixed',
+                            inset: '0',
+                            zIndex: '10000',
+                            background: 'transparent',
+                            pointerEvents: 'auto',
+                        })
+                        const block = (e) => { e.preventDefault(); e.stopPropagation() }
+                        overlay.addEventListener('mousedown', (e) => { block(e); onClose?.() })
+                        overlay.addEventListener('touchstart', (e) => { block(e); onClose?.() }, { passive: false })
+                        overlay.addEventListener('wheel', block, { passive: false })
+                        overlay.addEventListener('scroll', block, { passive: false })
+                        doc.body.appendChild(overlay)
+                    }
+
+                    const detachOverlay = () => {
+                        if (overlay) {
+                            overlay.remove()
+                            overlay = null
+                        }
+                    }
+                    const closeSuggestions = (props) => {
+                        if (typeof props?.command === 'function') {
+                            props.command('close')
+                        } else {
+                            // fallback cleanup if command is missing
+                            root?.remove()
+                            if (doc && outsideClickHandler) doc.removeEventListener('mousedown', outsideClickHandler, true)
+                            if (doc && focusOutHandler) doc.removeEventListener('focusout', focusOutHandler, true)
+                            root = body = doc = view = null
+                            currentItems = []
+                            activeIndex = 0
+                            outsideClickHandler = focusOutHandler = null
+                            detachOverlay()
+                        }
+                    }
+
+                    const firstEnabledIndex = () => currentItems.findIndex(it => !it.disabled)
 
                     const setActive = (i) => {
-                        activeIndex = Math.max(0, Math.min(i, currentItems.length - 1))
+                        if (!currentItems.length) return
+                        const capped = Math.max(0, Math.min(i, currentItems.length - 1))
+                        activeIndex = capped
                         const buttons = body.querySelectorAll('.tiptap-button:not([disabled])')
-                        buttons.forEach((b, idx) => b.setAttribute('data-active-state', idx === activeIndex ? 'on' : 'off'))
+                        buttons.forEach((b, idx) => b.setAttribute('data-active-state', idx === capped ? 'on' : 'off'))
+                        const activeBtn = buttons[capped]
+                        if (activeBtn?.scrollIntoView) {
+                            activeBtn.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+                        }
                     }
 
                     const rebuild = (props) => {
@@ -194,10 +289,11 @@ export default Extension.create({
                                 const { editor, range } = props
                                 editor.chain().focus().deleteRange({ from: range.from, to: range.to }).run()
                                 it.run({ editor, range })
-                                props.command('close')
+                                closeSuggestions(props)
                             })
                         })
-                        setActive(0)
+                        const fi = firstEnabledIndex()
+                        setActive(fi >= 0 ? fi : 0)
                         positionMenu(root, props.clientRect, view)
                     }
 
@@ -206,17 +302,19 @@ export default Extension.create({
                         const { editor, range, query } = props
                         const text = `/${query || ''}`
                         editor.chain().focus().insertContentAt({ from: range.from, to: range.to }, text).run()
-                        props.command('close')
+                        closeSuggestions(props)
                     }
 
                     return {
                         onStart: (props) => {
+                            currentEditor = props.editor
                             view = props.editor.view
                             doc  = view.dom.ownerDocument
+                            attachOverlay(doc, () => closeSuggestions(props))
 
                             // 10-word guard on open
                             if (wordCount(props.query) > 10) { plainifyQueryAndClose(props); return }
-                            else { props.command('close') }
+                            else { closeSuggestions(props) }
 
                             const shell = buildShell(doc)
                             root = shell.outer
@@ -232,7 +330,7 @@ export default Extension.create({
                                 const clickedInsideEditor = view.dom.contains(t)
                                 if (!clickedInsideMenu && !clickedInsideEditor) {
                                     // just close; decoration disappears and text stays
-                                    props.command('close')
+                                    closeSuggestions(props)
                                 }
                             }
                             focusOutHandler = (e) => {
@@ -241,7 +339,7 @@ export default Extension.create({
                                 const related = e.relatedTarget
                                 const leavingMenu = root && root.contains(t) && (!related || !root.contains(related))
                                 const leavingEditor = view.dom.contains(t) && (!related || !view.dom.contains(related))
-                                if (leavingMenu && leavingEditor) props.command('close')
+                                if (leavingMenu && leavingEditor) closeSuggestions(props)
                             }
 
                             // Use ownerDocument to be iframe-safe
@@ -250,6 +348,7 @@ export default Extension.create({
                         },
 
                         onUpdate: (props) => {
+                            currentEditor = props.editor
                             // 10-word guard during typing
                             if (wordCount(props.query) > 10) { plainifyQueryAndClose(props); return }
                             rebuild(props)
@@ -257,18 +356,43 @@ export default Extension.create({
 
                         onKeyDown: (props) => {
                             const { event } = props
-                            if (event.key === 'Escape') { props.command('close'); return true }
-                            if (!currentItems.length || currentItems[0]?.disabled) return false
+                            const editor = currentEditor || props.editor
+                            if (event.key === 'Escape') {
+                                event.preventDefault()
+                                if (editor && props.range?.from != null && props.range?.to != null) {
+                                    editor.chain().focus().deleteRange({ from: props.range.from, to: props.range.to }).run()
+                                }
+                                closeSuggestions(props)
+                                return true
+                            }
+                            if (!currentItems.length) {
+                                closeSuggestions(props)
+                                return true
+                            }
                             if (event.key === 'ArrowDown') { setActive(activeIndex + 1); return true }
                             if (event.key === 'ArrowUp')   { setActive(activeIndex - 1); return true }
                             if (event.key === 'Enter') {
-                                const item = currentItems[activeIndex]
-                                if (item && !item.disabled) {
-                                    const { editor, range } = props
-                                    editor.chain().focus().deleteRange({ from: range.from, to: range.to }).run()
-                                    item.run({ editor, range })
-                                    props.command('close')
+                                event.preventDefault()
+                                let item = currentItems[activeIndex]
+                                if (!item || item.disabled) {
+                                    const fi = firstEnabledIndex()
+                                    if (fi >= 0) {
+                                        setActive(fi)
+                                        item = currentItems[fi]
+                                    }
                                 }
+                                console.log('editor',editor)
+                                if (item && !item.disabled && typeof item.run === 'function' && editor) {
+                                    const range = props.range || editor.state.selection
+                                    if (range?.from != null && range?.to != null) {
+                                        editor.chain().focus().deleteRange({ from: range.from, to: range.to }).run()
+                                    } else {
+                                        editor.chain().focus()
+                                    }
+                                    item.run({ editor, range })
+                                }
+                                // Always swallow Enter while menu is open to avoid inserting new lines
+                                closeSuggestions(props)
                                 return true
                             }
                             return false
@@ -276,6 +400,8 @@ export default Extension.create({
 
                         onExit: () => {
                             // cleanup
+                            currentEditor = null
+                            detachOverlay()
                             root?.remove()
                             if (doc && outsideClickHandler) doc.removeEventListener('mousedown', outsideClickHandler, true)
                             if (doc && focusOutHandler) doc.removeEventListener('focusout', focusOutHandler, true)

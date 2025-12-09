@@ -514,7 +514,7 @@ export const TIPTAPCSS = `
     margin-top: 0
 }
 
-.tiptap.ProseMirror blockquote.is-empty:before,.tiptap.ProseMirror blockquote:before {
+.tiptap.ProseMirror.ProseMirror-focused blockquote.is-empty:before,.tiptap.ProseMirror.ProseMirror-focused blockquote:before {
     position: absolute;
     bottom: 0;
     left: 0;
@@ -524,6 +524,10 @@ export const TIPTAPCSS = `
     background-color: var(--blockquote-bg-color);
     content: "";
     border-radius: 0
+}
+button.ql-blot-format-toolbar__button_dropdown-menu_item.is-disabled {
+    opacity: .6;
+    cursor: not-allowed;
 }
 
 .tiptap.ProseMirror {
@@ -705,7 +709,7 @@ export const TIPTAPCSS = `
 }
 
 .tiptap.ProseMirror .collaboration-carets__label {
-    color: var(--tt-collaboration-carets-label);
+    color: #ffffff;
     border-radius: .25rem;
     border-bottom-left-radius: 0;
     font-size: .75rem;
@@ -790,17 +794,17 @@ export const TIPTAPCSS = `
     margin-bottom: 3rem
 }
 
-.is-empty:not(.with-slash)[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
+.tiptap.ProseMirror.ProseMirror-focused .is-empty:not(.with-slash)[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
     content: attr(data-placeholder)
     font-style: italic;
 }
 
-.is-empty.with-slash[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
+.tiptap.ProseMirror.ProseMirror-focused .is-empty.with-slash[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
     content: "Write, type '/' for commands…";
     font-style: italic
 }
 
-.is-empty[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
+.tiptap.ProseMirror.ProseMirror-focused .is-empty[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
     pointer-events: none;
     height: 0;
     position: absolute;
@@ -810,7 +814,7 @@ export const TIPTAPCSS = `
     right: 0
 }
 
-.is-empty[data-placeholder]:has(>.ProseMirror-trailingBreak):before {
+.tiptap.ProseMirror.ProseMirror-focused .is-empty[data-placeholder]:has(>.ProseMirror-trailingBreak):before {
     color: var(--placeholder-color)
 }
 
@@ -1680,7 +1684,7 @@ span.suggestion.is-empty:after {
 }
 
 .tiptap.ProseMirror p {
-    font-size: 1.132rem;
+    font-size: 1rem;
     font-weight: 400;
     margin-bottom: 10px
 }

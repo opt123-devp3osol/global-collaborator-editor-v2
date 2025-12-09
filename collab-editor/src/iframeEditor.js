@@ -7,19 +7,17 @@ import TextAlign from '@tiptap/extension-text-align'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import { Extension, } from '@tiptap/core'
-import { Dropcursor } from '@tiptap/extensions'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { Table } from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import { TableScrollWrapper } from './extensions/TableScrollWrapper.js'
 import {createToolbar, wireToolbar} from './toolbar.js'
-import { Gapcursor } from '@tiptap/extensions'
 import { TableHoverOverlay } from './extensions/TableHoverOverlay.js'
 import { TableFormatToolbar } from './extensions/TableFormatToolbar.js'
 import { CustomTableCell, CustomTableHeader } from './extensions/CustomTableCell.js'
 import { columnResizing, tableEditing } from '@tiptap/pm/tables'
-import BlockId from './extensions/BlockId.js'
+import UniqueID from '@tiptap/extension-unique-id'
 import SlashCommand from './extensions/SlashCommand.js'
 import {ResizableImage} from './extensions/ResizableImage.js'
 import {CSS} from "./iframeEditorCss.js";
@@ -32,7 +30,7 @@ import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import DragHandle from '@tiptap/extension-drag-handle'
 import {createSelectionToolbar, wireSelectionToolbar} from "./selectionToolbar.js";
 import Placeholder from '@tiptap/extension-placeholder'
-
+import { Selection } from '@tiptap/pm/state'
 
 const FontStyle = TextStyle.extend({
     addAttributes() {
@@ -64,46 +62,6 @@ const FontCommands = Extension.create({
     },
 })
 
-const DocWhitespaceCleaner = Extension.create({
-    name: 'docWhitespaceCleaner',
-
-    addStorage() {
-        return { cleaned: false }
-    },
-
-    onCreate() {
-        this.maybeClean()
-    },
-
-    onUpdate() {
-        this.maybeClean()
-    },
-
-    maybeClean() {
-        if (this.storage.cleaned) return
-
-        const { state } = this.editor
-        const doc = state.doc
-
-        const text = doc.textBetween(0, doc.content.size, '\n', '\n')
-
-        // If doc is completely empty: nothing to do (no stray space)
-        if (!text) {
-            this.storage.cleaned = false
-            return
-        }
-
-        // If doc is only whitespace (like that stray single space), clear it once
-        if (/^\s+$/.test(text)) {
-            this.editor.commands.clearContent(true)
-        }
-
-        // After first non-empty or cleared state, stop touching content
-        this.storage.cleaned = true
-    },
-})
-
-
 
 export function createEditorIframe(doc, editorId, options = {}) {
     const {
@@ -120,8 +78,6 @@ export function createEditorIframe(doc, editorId, options = {}) {
         window.location.protocol === 'moz-extension:'
 
     if (isFirefoxExtension) {
-        // ⚠️ IMPORTANT: DO NOT USE doc.open/write in Firefox extension
-
         // Clear existing contents
         if (doc.body) {
             while (doc.body.firstChild) {
@@ -283,7 +239,9 @@ export function createEditorIframe(doc, editorId, options = {}) {
     socket.on('yjs-update', ({ docId: remoteDocId, update }) => {
         if (remoteDocId !== docId || !update) return;
 
-        const u = update instanceof ArrayBuffer ? new Uint8Array(update) : (update.byteLength !== undefined ? new Uint8Array(update) : update);
+        const u = update instanceof ArrayBuffer
+            ? new Uint8Array(update)
+            : (update.byteLength !== undefined ? new Uint8Array(update) : update);
 
         try {
             Y.applyUpdate(ydoc, u);
@@ -291,7 +249,13 @@ export function createEditorIframe(doc, editorId, options = {}) {
             console.error('Error applying Yjs update', e);
         }
         if (loader) loader.style.display = 'none';
+
+        // 🔁 Now that remote content has been applied, decide whether to auto-focus
+        setTimeout(() => {
+            focusEditorOnLoad();
+        }, 0);
     });
+
 
     // styles
     const style = doc.createElement('style')
@@ -299,13 +263,32 @@ export function createEditorIframe(doc, editorId, options = {}) {
     doc.head.appendChild(style)
 
     // editor
+    let dragHandleElement = null;
     const el = doc.getElementById('editor_main_container')
     const extensions = [
-        BlockId,
         StarterKit.configure({
-            history: true,
+            history: false,
+            dropcursor: false,
+            gapcursor: false,
             bulletList: { keepMarks: true, keepAttributes: true },
             orderedList: { keepMarks: true, keepAttributes: true },
+        }),
+        UniqueID.configure({
+            attributeName: 'uid',     // name of the attribute
+            types: [                 // nodes that should receive IDs
+                'paragraph',
+                'heading',
+                'listItem',
+                'bulletList',
+                'orderedList',
+                'taskItem',
+                'taskList',
+                'blockquote',
+                'codeBlock',
+                'table',
+                'tableRow',
+                'tableCell',
+            ],
         }),
         Collaboration.configure({
             document: ydoc,
@@ -330,22 +313,29 @@ export function createEditorIframe(doc, editorId, options = {}) {
         Table.configure({ resizable: true }),
         CustomTableHeader,
         TableRow,
-        DragHandle.configure({
-            render: () => {
-                const element = document.createElement('div')
-                // Use as a hook for CSS to insert an icon
-                element.classList.add('custom-drag-handle')
-                element.classList.add('tiptap-button')
-                element.classList.add('tiptap-menu-button')
-                element.innerHTML = `
-                <svg width="24" height="24" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="9" cy="5" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="9" cy="19" r="2"></circle>
-                  <circle cx="15" cy="5" r="2"></circle><circle cx="15" cy="12" r="2"></circle><circle cx="15" cy="19" r="2"></circle>
-                </svg>
-                `
-                return element
-            },
-        }),
+        // DragHandle.configure({
+        //     render: () => {
+        //         // IMPORTANT: use iframe document, not global document
+        //         const element = doc.createElement('div')
+        //         dragHandleElement = element
+        //
+        //         // Use as a hook for CSS to insert an icon
+        //         element.classList.add('custom-drag-handle')
+        //         element.classList.add('tiptap-button')
+        //         element.classList.add('tiptap-menu-button')
+        //
+        //         // hide by default on initial load
+        //         element.style.display = 'none'
+        //
+        //         element.innerHTML = `
+        //         <svg width="24" height="24" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        //           <circle cx="9" cy="5" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="9" cy="19" r="2"></circle>
+        //           <circle cx="15" cy="5" r="2"></circle><circle cx="15" cy="12" r="2"></circle><circle cx="15" cy="19" r="2"></circle>
+        //         </svg>
+        //         `
+        //         return element
+        //     },
+        // }),
         CustomTableCell,
         TableHoverOverlay,
         ResizableImage,
@@ -354,15 +344,13 @@ export function createEditorIframe(doc, editorId, options = {}) {
         FontStyle,
         Color,
         FontCommands,
-        Placeholder.configure({ // 👈 real placeholder
-            placeholder: "Write, type '/' for commands...",
+        Placeholder.configure({
+            placeholder: "Start typing...",
             includeChildren: false,
             showOnlyCurrent: true,
             showOnlyWhenEditable: true,
-            emptyNodeClass: 'is-empty',
+            emptyNodeClass: 'is-empty with-slash',
         }),
-        Dropcursor,
-        Gapcursor,
     ];
 
     const editor = new Editor({
@@ -402,6 +390,18 @@ export function createEditorIframe(doc, editorId, options = {}) {
         injectCSS: false,
     })
 
+    editor.on('selectionUpdate', ({ editor: ed }) => {
+        if (!dragHandleElement) return;
+
+        if (ed.isEmpty) {
+            // hide when document is empty (initial load, or user deleted everything)
+            dragHandleElement.style.display = 'none';
+        } else {
+            // show when there is any content
+            dragHandleElement.style.display = '';
+        }
+    });
+
     const uploadPastedImage = async (file) => {
         try {
             const formData = new FormData();
@@ -440,6 +440,9 @@ export function createEditorIframe(doc, editorId, options = {}) {
         }
     };
 
+    // expose uploader for other extensions (e.g., slash menu)
+    editor.storage.uploadPastedImage = uploadPastedImage;
+
     function setupSave(editor, socket, docId) {
         const save = () => {
             const html = editor.getHTML();
@@ -470,6 +473,71 @@ export function createEditorIframe(doc, editorId, options = {}) {
     }
 
     const save = setupSave(editor, socket, docId);
+
+    let initialAutoFocusDone = false;
+
+    function focusEditorOnLoad() {
+        if (!editor || initialAutoFocusDone) return;
+
+        console.log('[focusEditorOnLoad] called; editor.isEmpty =', editor.isEmpty);
+
+        // If there is ANY content, don't focus and don't touch blocks
+        if (!editor.isEmpty) {
+            initialAutoFocusDone = true;
+            return;
+        }
+
+        // Doc is empty here. Ensure there's at least one paragraph block.
+        const json = editor.getJSON();
+        const content = json.content || [];
+        const hasAnyBlock = content.length > 0;
+
+        if (!hasAnyBlock) {
+            console.log('[focusEditorOnLoad] no blocks, inserting first paragraph');
+            editor.commands.setContent(
+                {
+                    type: 'doc',
+                    content: [
+                        {
+                            type: 'paragraph',
+                            content: [],
+                        },
+                    ],
+                },
+                false // no extra history entry
+            );
+        }
+
+        // Defer selection & focus to next frame so DOM + plugins are settled
+        requestAnimationFrame(() => {
+            try {
+                const { state, view } = editor;
+
+                // Position near the end of the doc (but at least 1)
+                const pos = Math.max(1, state.doc.content.size);
+                const selection = Selection.near(state.doc.resolve(pos));
+
+                console.log('[focusEditorOnLoad] setting PM selection at', pos);
+
+                // Set selection and ensure it's scrolled into view
+                const tr = state.tr.setSelection(selection).scrollIntoView();
+                view.dispatch(tr);
+
+                // Focus the contenteditable
+                if (view.dom && view.dom.focus) {
+                    view.dom.focus();
+                } else {
+                    view.focus();
+                }
+            } catch (err) {
+                console.error('[focusEditorOnLoad] error while focusing', err);
+            }
+        });
+
+        initialAutoFocusDone = true;
+    }
+
     return { editor, toolbar: toolbarHost, save }
 }
+
 

@@ -116,7 +116,7 @@ export const CSS = `
                     .global_editor_toolbar_button_pane button:hover+.ge_tooltip_wrapper{opacity:1}
                     .global_editor_toolbar .global_editor_toolbar_button_pane .global_editor_button.active{background:#0e9af11a!important}
                     .global_editor_button.active svg *{stroke:#0E9AEF!important}
-                    .tool_bar_wrap{position:relative}
+                    .tool_bar_wrap{position:relative; margin-bottom: 2px;}
                     .global_editor_toolbar_button_pane button:hover+.ge_tooltip_wrapper{opacity:1}
                     .global_editor_button.dropdown-button svg:first-child{margin-left:0}
                     .global_editor_button_group .dropdown-button .color_button_toolbar{border-radius:4px!important}
@@ -889,7 +889,7 @@ h2 {
     margin-bottom: 7px!important;
 }
 
-h2:after {
+h1:after, h2:after{
     content: '';
     position: absolute;
     height: 1px;
@@ -1098,10 +1098,11 @@ body.doc_editor_body_main {
 }
 
 .ge_outer_most_container {
-height: calc(100vh - 55px);
 overflow:auto;
+height: 100vh;
 }
 .ge_outer_most_container.no_floating_toolbar{
+height: calc(100vh - 50px);
 margin-top: 50px;
 }
 .ge_outer_most_container {
@@ -1263,8 +1264,9 @@ z-index:999999;
         padding:10px 20px;
         background:#fff;
         border-radius:6px;
-        z-index: 9999;
-        box-shadow:0 0 10px rgba(0,0,0,0.1);
+       box-shadow: 1px 1px 2000px 200000px #ffffff;
+    z-index: 9999;
+    border: 1px solid #d8d8d8;
 }
  .ge_toolbar_main_element {
     position: relative;

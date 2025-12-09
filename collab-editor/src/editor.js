@@ -204,10 +204,52 @@ export class TextEditor {
 
 
     focusEditor() {
-        this.editor.chain().focus('end').run();
-        // optional: ensure the editor is visible
-        this.editor.view.dom.scrollIntoView({block:'nearest'});
+        const editor = this.editor;
+        if (!editor) return;
+
+        const json = editor.getJSON();
+        const content = json.content || [];
+
+        // Check if there is ANY non-empty block
+        const hasNonEmptyBlock = content.some(node => {
+            if (!node) return false;
+
+            // Treat any non-paragraph node as "not empty"
+            if (node.type !== 'paragraph') return true;
+
+            const text = (node.content || [])
+                .filter((c) => c.type === 'text')
+                .map((c) => c.text || '')
+                .join('');
+
+            return text.trim().length > 0;
+        });
+
+
+        if (hasNonEmptyBlock) {
+            return;
+        }
+
+
+        // Normalize to a single empty paragraph (first empty block)
+        editor.commands.setContent(
+            {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'paragraph',
+                        content: [],
+                    },
+                ],
+            },
+            false
+        );
+
+        // Focus on that first empty block
+        editor.chain().focus('end').run();
+        editor.view.dom.scrollIntoView({ block: 'nearest' });
     }
+
 
     static create(iframeId, editorId, documentId, options) {
         try {

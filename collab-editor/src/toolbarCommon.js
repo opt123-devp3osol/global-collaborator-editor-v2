@@ -286,7 +286,6 @@ export function buildToolbarButtonsHtml(tools = []) {
        `;
     }
 
-
     // Remove formatting
     html += `
        <!-- Remove Formatting -->
