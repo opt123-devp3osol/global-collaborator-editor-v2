@@ -381,7 +381,7 @@ export default Extension.create({
                                         item = currentItems[fi]
                                     }
                                 }
-                                console.log('editor',editor)
+
                                 if (item && !item.disabled && typeof item.run === 'function' && editor) {
                                     const range = props.range || editor.state.selection
                                     if (range?.from != null && range?.to != null) {

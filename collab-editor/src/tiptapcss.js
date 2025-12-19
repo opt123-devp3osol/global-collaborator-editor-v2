@@ -800,7 +800,7 @@ button.ql-blot-format-toolbar__button_dropdown-menu_item.is-disabled {
 }
 
 .tiptap.ProseMirror.ProseMirror-focused .is-empty.with-slash[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
-    content: "Write, type '/' for commands…";
+    content: "Write or type '/' for command and more options";
     font-style: italic
 }
 

@@ -1132,6 +1132,17 @@ img.ProseMirror-separator {
     width:100%;
     margin:auto;
 }
+.ge_initial_placeholder{
+    position: absolute;
+    inset: 0;
+    padding: 1rem 3rem 0 3rem;
+    color: var(--placeholder-color, #b3b3b3);
+    font-style: italic;
+    font-size: 1rem;
+    pointer-events: none;
+    line-height: 1.6;
+    z-index: 1;
+}
 .ge_tool_bar_container_at_top.global_editor_toolbar{
     background:#fff;
     display:flex;

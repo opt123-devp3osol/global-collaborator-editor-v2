@@ -141,7 +141,6 @@ app.use(function (req, res, next) {
 });
 app.use(express.urlencoded({ extended: true, limit: '250mb' }));
 app.use(express.json({ limit: '250mb' }));
-const __dirname = path.resolve();
 const uploadDirPath = `/var/www/html/app.timebox.ai/global-editor-backend/global_editor_data`;
 
 const clients = {};

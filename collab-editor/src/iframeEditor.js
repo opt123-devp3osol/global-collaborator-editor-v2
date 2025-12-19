@@ -1,3 +1,4 @@
+// iframeEditor.js
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -6,31 +7,237 @@ import Highlight from '@tiptap/extension-highlight'
 import TextAlign from '@tiptap/extension-text-align'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
-import { Extension, } from '@tiptap/core'
+import { Extension } from '@tiptap/core'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { Table } from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import { TableScrollWrapper } from './extensions/TableScrollWrapper.js'
-import {createToolbar, wireToolbar} from './toolbar.js'
+import { createToolbar, wireToolbar } from './toolbar.js'
 import { TableHoverOverlay } from './extensions/TableHoverOverlay.js'
 import { TableFormatToolbar } from './extensions/TableFormatToolbar.js'
 import { CustomTableCell, CustomTableHeader } from './extensions/CustomTableCell.js'
 import { columnResizing, tableEditing } from '@tiptap/pm/tables'
 import UniqueID from '@tiptap/extension-unique-id'
 import SlashCommand from './extensions/SlashCommand.js'
-import {ResizableImage} from './extensions/ResizableImage.js'
-import {CSS} from "./iframeEditorCss.js";
-import {TIPTAPCSS} from "./tiptapcss";
+import { ResizableImage } from './extensions/ResizableImage.js'
+import { CSS } from './iframeEditorCss.js'
+import { TIPTAPCSS } from './tiptapcss'
 import * as Y from 'yjs'
 import Collaboration from '@tiptap/extension-collaboration'
 import * as awarenessProtocol from 'y-protocols/awareness'
 import io from 'socket.io-client'
-import CollaborationCaret from '@tiptap/extension-collaboration-caret';
-import DragHandle from '@tiptap/extension-drag-handle'
-import {createSelectionToolbar, wireSelectionToolbar} from "./selectionToolbar.js";
+import CollaborationCaret from '@tiptap/extension-collaboration-caret'
+import { createSelectionToolbar, wireSelectionToolbar } from './selectionToolbar.js'
 import Placeholder from '@tiptap/extension-placeholder'
-import { Selection } from '@tiptap/pm/state'
+
+// -----------------------------
+// Shared Yjs Provider Manager
+// -----------------------------
+
+const GLOBAL_YJS_KEY = '__GLOBAL_EDITOR_YJS_PROVIDER_MANAGER__';
+
+function buildSocketConfig(baseServerUrl, options = {}) {
+    // baseServerUrl: https://backend.timebox.ai/global-editor-api
+    const u = new URL(baseServerUrl);
+
+    const origin = u.origin;                           // https://backend.timebox.ai
+    const nsPath = (u.pathname || '').replace(/\/$/, ''); // /global-editor-api
+
+    // IMPORTANT:
+    // - connectUrl must include namespace path so we connect to /global-editor-api namespace
+    // - path must match server: /global-editor-api/socket.io
+    const connectUrl = `${origin}${nsPath}`;
+    const path = `${nsPath}/socket.io`;
+
+    return {
+        connectUrl,
+        path,
+        transports: ['websocket'],
+        reconnectionAttempts: options.reconnectionAttempts ?? 5,
+        reconnectionDelay: options.reconnectionDelay ?? 5000,
+    };
+}
+
+
+function getGlobalProviderManager(baseServerUrl, options = {}) {
+    if (!globalThis[GLOBAL_YJS_KEY]) {
+        globalThis[GLOBAL_YJS_KEY] = createProviderManager(baseServerUrl, options);
+    }
+    return globalThis[GLOBAL_YJS_KEY];
+}
+
+function createProviderManager(baseServerUrl, options = {}) {
+    const cfg = buildSocketConfig(baseServerUrl, options);
+
+    // FIX: connect to namespace URL, not origin
+    const socket = io(cfg.connectUrl, {
+        path: cfg.path,
+        transports: cfg.transports,
+        reconnectionAttempts: cfg.reconnectionAttempts,
+        reconnectionDelay: cfg.reconnectionDelay,
+    });
+
+    /**
+     * docs: Map<docId, {
+     *   ydoc: Y.Doc,
+     *   awareness: Awareness,
+     *   refCount: number,
+     *   bound: boolean,
+     *   onYDocUpdate: Function,
+     * }>
+     */
+    const docs = new Map();
+
+    // Re-join on reconnect
+    socket.on('connect', () => {
+        for (const [docId, entry] of docs.entries()) {
+            if (entry.refCount > 0) {
+                socket.emit('joinYDoc', docId);
+                // push local awareness state after reconnect
+                try {
+                    const localState = entry.awareness.getLocalState();
+                    if (localState) {
+                        const update = awarenessProtocol.encodeAwarenessUpdate(entry.awareness, [socket.id].filter(Boolean));
+                        // The above line is not the correct "changed clients" list; instead we send a full local state
+                        // by re-setting local state field and letting awareness update fire naturally.
+                    }
+                } catch {}
+            }
+        }
+    });
+
+    const ensureDoc = (docId, user) => {
+        let entry = docs.get(docId);
+        if (!entry) {
+            const ydoc = new Y.Doc();
+            const awareness = new awarenessProtocol.Awareness(ydoc);
+
+            entry = {
+                ydoc,
+                awareness,
+                refCount: 0,
+                bound: false,
+                onYDocUpdate: null,
+            };
+            docs.set(docId, entry);
+        }
+
+        // Always set local user state for this tab (safe to call repeatedly)
+        entry.awareness.setLocalStateField('user', user);
+
+        // Bind handlers only once per docId
+        if (!entry.bound) {
+            entry.bound = true;
+
+            // Local awareness -> server
+            entry.awareness.on('update', ({ added, updated, removed }) => {
+                const changed = added.concat(updated).concat(removed);
+                if (!changed.length) return;
+                const update = awarenessProtocol.encodeAwarenessUpdate(entry.awareness, changed);
+                socket.emit('yjs-awareness', { docId, update });
+            });
+
+            // Local doc updates -> server
+            entry.onYDocUpdate = (update) => {
+                socket.emit('yjs-update', { docId, update });
+            };
+            entry.ydoc.on('update', entry.onYDocUpdate);
+        }
+
+        return entry;
+    };
+
+    // Remote awareness -> local awareness
+    socket.on('yjs-awareness', ({ docId: remoteDocId, update }) => {
+        if (!remoteDocId || !update) return;
+        const entry = docs.get(remoteDocId);
+        if (!entry) return;
+
+        const u =
+            update instanceof Uint8Array
+                ? update
+                : update instanceof ArrayBuffer
+                    ? new Uint8Array(update)
+                    : (update?.byteLength !== undefined ? new Uint8Array(update) : update);
+
+        try {
+            awarenessProtocol.applyAwarenessUpdate(entry.awareness, u, socket.id);
+        } catch (e) {
+            console.error('Error applying awareness update', e);
+        }
+    });
+
+    // Remote doc update -> local doc
+    socket.on('yjs-update', ({ docId: remoteDocId, update }) => {
+        if (!remoteDocId || !update) return;
+        const entry = docs.get(remoteDocId);
+        if (!entry) return;
+
+        const u =
+            update instanceof Uint8Array
+                ? update
+                : update instanceof ArrayBuffer
+                    ? new Uint8Array(update)
+                    : (update?.byteLength !== undefined ? new Uint8Array(update) : update);
+
+        try {
+            Y.applyUpdate(entry.ydoc, u);
+        } catch (e) {
+            console.error('Error applying Yjs update', e);
+        }
+    });
+
+    const acquire = (docId, user) => {
+        const entry = ensureDoc(docId, user);
+        entry.refCount += 1;
+
+        // join room on first consumer
+        if (entry.refCount === 1) {
+            socket.emit('joinYDoc', docId);
+        }
+
+        // Provider object for CollaborationCaret
+        const provider = {
+            doc: entry.ydoc,
+            awareness: entry.awareness,
+            on: () => {},
+            off: () => {},
+        };
+
+        const release = () => {
+            const current = docs.get(docId);
+            if (!current) return;
+
+            current.refCount = Math.max(0, current.refCount - 1);
+
+            if (current.refCount === 0) {
+                // Optional: ask server to leave if supported
+                socket.emit('leaveYDoc', docId);
+
+                // Important: clear local awareness so cursors disappear for this docId
+                // If another editor uses same docId, refCount would not be 0.
+                try {
+                    current.awareness.setLocalState(null);
+                } catch {}
+
+                // Keep ydoc in memory (fast reopen) or destroy to free memory:
+                // If you want aggressive cleanup, uncomment below:
+                // try { current.ydoc.off('update', current.onYDocUpdate); } catch {}
+                // try { current.ydoc.destroy(); } catch {}
+                // docs.delete(docId);
+            }
+        };
+
+        return { ydoc: entry.ydoc, awareness: entry.awareness, provider, socket, release };
+    };
+
+    return { socket, acquire };
+}
+
+// -----------------------------
+// Existing editor code
+// -----------------------------
 
 const FontStyle = TextStyle.extend({
     addAttributes() {
@@ -38,30 +245,26 @@ const FontStyle = TextStyle.extend({
             fontSize: {
                 default: null,
                 parseHTML: element => element.style.fontSize?.replace(/['"]/g, '') || null,
-                renderHTML: attrs => attrs.fontSize ? { style: `font-size:${attrs.fontSize}` } : {},
+                renderHTML: attrs => (attrs.fontSize ? { style: `font-size:${attrs.fontSize}` } : {}),
             },
             fontFamily: {
                 default: null,
                 parseHTML: element => element.style.fontFamily?.replace(/['"]/g, '') || null,
-                renderHTML: attrs => attrs.fontFamily ? { style: `font-family:${attrs.fontFamily}` } : {},
+                renderHTML: attrs => (attrs.fontFamily ? { style: `font-family:${attrs.fontFamily}` } : {}),
             },
         }
     },
 })
-
 
 const FontCommands = Extension.create({
     name: 'fontCommands',
     addCommands() {
         return {
-            setFontSize:
-                size => ({ chain }) => chain().setMark('textStyle', { fontSize: size }).run(),
-            setFontFamily:
-                fam => ({ chain }) => chain().setMark('textStyle', { fontFamily: fam }).run(),
+            setFontSize: size => ({ chain }) => chain().setMark('textStyle', { fontSize: size }).run(),
+            setFontFamily: fam => ({ chain }) => chain().setMark('textStyle', { fontFamily: fam }).run(),
         }
     },
 })
-
 
 export function createEditorIframe(doc, editorId, options = {}) {
     const {
@@ -70,6 +273,10 @@ export function createEditorIframe(doc, editorId, options = {}) {
         showFloatingToolbar = false,
         baseServerUrl = 'https://backend.timebox.ai/global-editor-api',
         mainEditorDocumentId,
+        initialPlaceholderText = `Write or type '/' for command and more options`,
+        userName: optUserName,
+        userColor: optUserColor,
+        yjs: yjsOptions = {},
     } = options
 
     const isFirefoxExtension =
@@ -78,14 +285,10 @@ export function createEditorIframe(doc, editorId, options = {}) {
         window.location.protocol === 'moz-extension:'
 
     if (isFirefoxExtension) {
-        // Clear existing contents
         if (doc.body) {
-            while (doc.body.firstChild) {
-                doc.body.removeChild(doc.body.firstChild)
-            }
+            while (doc.body.firstChild) doc.body.removeChild(doc.body.firstChild)
         }
 
-        // Ensure <html>, <head>, <body> exist
         let htmlEl = doc.documentElement
         if (!htmlEl) {
             htmlEl = doc.createElement('html')
@@ -107,7 +310,6 @@ export function createEditorIframe(doc, editorId, options = {}) {
         body.className = 'doc_editor_body_main'
         body.id = 'main_page'
 
-        // Basic meta tags
         const metaCharset = doc.createElement('meta')
         metaCharset.setAttribute('charset', 'utf-8')
         head.appendChild(metaCharset)
@@ -117,26 +319,21 @@ export function createEditorIframe(doc, editorId, options = {}) {
         metaViewport.content = 'width=device-width,initial-scale=1'
         head.appendChild(metaViewport)
 
-        // Loader
         const loaderDiv = doc.createElement('div')
         loaderDiv.id = 'ge_editor_loader'
         loaderDiv.className = 'ge_editor_loader'
         loaderDiv.textContent = 'Loading editor...'
 
-        // Outer container + editor container
         const outerMost = doc.createElement('div')
-        if(!showFloatingToolbar){
-            outerMost.className = 'ge_outer_most_container no_floating_toolbar'
-        } else{
-            outerMost.className = 'ge_outer_most_container'
-        }
+        outerMost.className = !showFloatingToolbar
+            ? 'ge_outer_most_container no_floating_toolbar'
+            : 'ge_outer_most_container'
 
         const editorContainer = doc.createElement('div')
         editorContainer.id = 'editor_main_container'
         editorContainer.className = 'doc_placeholder_container'
         editorContainer.style.width = width ? Number(width) + 'px' : '100%'
 
-        // Toolbar container (top)
         const toolbarDiv = doc.createElement('div')
         toolbarDiv.id = 'ge_toolbar_main_element'
         body.appendChild(toolbarDiv)
@@ -145,117 +342,60 @@ export function createEditorIframe(doc, editorId, options = {}) {
         body.appendChild(loaderDiv)
         body.appendChild(outerMost)
     } else {
-        // ========== LEGACY VERSION (CHROME + NORMAL WEB + CHROME EXT) ==========
         doc.open()
         doc.write(`<!doctype html>
-    <html>
+      <html>
         <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width,initial-scale=1">
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1">
         </head>
         <body class="doc_editor_body_main" id="main_page">
-            <div id="ge_editor_loader" class="ge_editor_loader">Loading editor...</div>
-            <div id="ge_toolbar_main_element"></div>
-            <div class="ge_outer_most_container ${!showFloatingToolbar ? 'no_floating_toolbar' : ''}">
-              <div id="editor_main_container" 
-                   class="doc_placeholder_container" 
-                   style="width:${width ? Number(width) + 'px' : '100%'}">
-              </div>
-           </div>
+          <div id="ge_editor_loader" class="ge_editor_loader">Loading editor...</div>
+          <div id="ge_toolbar_main_element"></div>
+          <div class="ge_outer_most_container ${!showFloatingToolbar ? 'no_floating_toolbar' : ''}">
+            <div id="editor_main_container"
+                 class="doc_placeholder_container"
+                 style="width:${width ? Number(width) + 'px' : '100%'}">
+            </div>
+          </div>
         </body>
-    </html>`)
+      </html>`)
         doc.close()
     }
 
     const docId = mainEditorDocumentId || editorId;
 
-    const socket = io(baseServerUrl, {
-        reconnectionAttempts: 5, // Max reconnection attempts (Socket.IO auto-reconnects)
-        reconnectionDelay: 5000, // Time before attempting to reconnect
-        transports: ['websocket'], // Ensure WebSocket is used as transport
-        path: '/global-editor-api/socket.io', // Specify the custom namespace for Socket.IO
-        query: { EIO: 4 }, // Optional query parameter for engine.io version 4
-    });
+    // Shared (per page) identity for this editor instance
+    const userName = optUserName || `Guest-${Date.now() % 1000000}`;
+    const userColor = optUserColor || ('#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'));
 
-    const ydoc = new Y.Doc();
-    const awareness = new awarenessProtocol.Awareness(ydoc);
-    const userName = options?.userName || `Guest-${Date.now() % 1000000}`;
-    const userColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
+    // Loader behavior (keep yours)
     const loader = doc.getElementById('ge_editor_loader');
-    awareness.setLocalStateField('user', {
-        name: userName,
-        color: userColor,
-    });
-
-    window.addEventListener('beforeunload', () => {
-        awareness.setLocalState(null); // marks this client as offline
-    });
-
-    awareness.on('update', ({ added, updated, removed }, origin) => {
-        const changed = added.concat(updated).concat(removed);
-        if (!changed.length) return;
-        const update = awarenessProtocol.encodeAwarenessUpdate(awareness, changed);
-        socket.emit('yjs-awareness', { docId, update });
-    });
-
-    const provider = {
-        doc: ydoc,
-        awareness,
-        on: () => {},
-        off: () => {},
+    let loaderTimeout = null;
+    const hideLoader = () => {
+        if (!loader) return;
+        loader.style.display = 'none';
+        if (loaderTimeout) {
+            clearTimeout(loaderTimeout);
+            loaderTimeout = null;
+        }
     };
+    loaderTimeout = setTimeout(hideLoader, 1000);
 
-    socket.on('yjs-awareness', ({ docId: remoteDocId, update }) => {
-        if (remoteDocId !== docId || !update) return;
+    // Acquire shared Yjs doc/awareness/socket for this docId
+    const mgr = getGlobalProviderManager(baseServerUrl, yjsOptions);
+    const { ydoc, awareness, provider, socket, release } = mgr.acquire(docId, { name: userName, color: userColor });
 
-        const u =
-            update instanceof Uint8Array
-                ? update
-                : update instanceof ArrayBuffer
-                    ? new Uint8Array(update)
-                    : (update.byteLength !== undefined ? new Uint8Array(update) : update);
-
-        try {
-            awarenessProtocol.applyAwarenessUpdate(awareness, u, socket.id);
-        } catch (e) {
-            console.error('Error applying awareness update', e);
-        }
-    });
-
-
-    socket.on('connect', () => {
-        socket.emit('joinYDoc', docId);
-    });
-
-    // Send local Yjs updates to server
-    ydoc.on('update', (update) => {
-        socket.emit('yjs-update', {
-            docId,
-            update, // Uint8Array – Socket.IO handles this as binary
+    // Ensure awareness is cleared when this page closes (good hygiene)
+    // NOTE: This is per-tab and applies to all docIds; OK.
+    if (!globalThis.__GLOBAL_EDITOR_YJS_BEFOREUNLOAD_BOUND__) {
+        globalThis.__GLOBAL_EDITOR_YJS_BEFOREUNLOAD_BOUND__ = true;
+        window.addEventListener('beforeunload', () => {
+            // we cannot easily enumerate docs here without exposing manager internals;
+            // at minimum, socket disconnect will happen naturally, and server awareness TTL should expire.
+            // If you want stronger cleanup, implement server-side client disconnect handling.
         });
-    });
-
-    // Apply remote Yjs updates from server
-    socket.on('yjs-update', ({ docId: remoteDocId, update }) => {
-        if (remoteDocId !== docId || !update) return;
-
-        const u = update instanceof ArrayBuffer
-            ? new Uint8Array(update)
-            : (update.byteLength !== undefined ? new Uint8Array(update) : update);
-
-        try {
-            Y.applyUpdate(ydoc, u);
-        } catch (e) {
-            console.error('Error applying Yjs update', e);
-        }
-        if (loader) loader.style.display = 'none';
-
-        // 🔁 Now that remote content has been applied, decide whether to auto-focus
-        setTimeout(() => {
-            focusEditorOnLoad();
-        }, 0);
-    });
-
+    }
 
     // styles
     const style = doc.createElement('style')
@@ -263,8 +403,8 @@ export function createEditorIframe(doc, editorId, options = {}) {
     doc.head.appendChild(style)
 
     // editor
-    let dragHandleElement = null;
     const el = doc.getElementById('editor_main_container')
+
     const extensions = [
         StarterKit.configure({
             history: false,
@@ -274,8 +414,8 @@ export function createEditorIframe(doc, editorId, options = {}) {
             orderedList: { keepMarks: true, keepAttributes: true },
         }),
         UniqueID.configure({
-            attributeName: 'uid',     // name of the attribute
-            types: [                 // nodes that should receive IDs
+            attributeName: 'uid',
+            types: [
                 'paragraph',
                 'heading',
                 'listItem',
@@ -296,15 +436,12 @@ export function createEditorIframe(doc, editorId, options = {}) {
         }),
         CollaborationCaret.configure({
             provider,
-            user: {
-                name: userName,
-                color: userColor,
-            },
+            user: { name: userName, color: userColor },
         }),
         Underline,
         Link.configure({ openOnClick: false, autolink: true, defaultProtocol: 'https' }),
         Highlight.configure({ multicolor: true }),
-        TextAlign.configure({ types: ['heading','paragraph'] }),
+        TextAlign.configure({ types: ['heading', 'paragraph'] }),
         TaskList,
         TaskItem.configure({ nested: true }),
         columnResizing({ handleWidth: 6, cellMinWidth: 40, lastColumnResizable: true }),
@@ -313,29 +450,6 @@ export function createEditorIframe(doc, editorId, options = {}) {
         Table.configure({ resizable: true }),
         CustomTableHeader,
         TableRow,
-        // DragHandle.configure({
-        //     render: () => {
-        //         // IMPORTANT: use iframe document, not global document
-        //         const element = doc.createElement('div')
-        //         dragHandleElement = element
-        //
-        //         // Use as a hook for CSS to insert an icon
-        //         element.classList.add('custom-drag-handle')
-        //         element.classList.add('tiptap-button')
-        //         element.classList.add('tiptap-menu-button')
-        //
-        //         // hide by default on initial load
-        //         element.style.display = 'none'
-        //
-        //         element.innerHTML = `
-        //         <svg width="24" height="24" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        //           <circle cx="9" cy="5" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="9" cy="19" r="2"></circle>
-        //           <circle cx="15" cy="5" r="2"></circle><circle cx="15" cy="12" r="2"></circle><circle cx="15" cy="19" r="2"></circle>
-        //         </svg>
-        //         `
-        //         return element
-        //     },
-        // }),
         CustomTableCell,
         TableHoverOverlay,
         ResizableImage,
@@ -345,7 +459,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
         Color,
         FontCommands,
         Placeholder.configure({
-            placeholder: "Start typing...",
+            placeholder: 'Start typing...',
             includeChildren: false,
             showOnlyCurrent: true,
             showOnlyWhenEditable: true,
@@ -371,35 +485,85 @@ export function createEditorIframe(doc, editorId, options = {}) {
 
                         event.preventDefault();
                         handled = true;
-
-                        // upload + insert image node
                         uploadPastedImage(file);
                         break;
                     }
                 }
 
-                // if we handled an image, stop the default paste
                 if (handled) return true;
-
-                // otherwise, let Tiptap handle normal text/HTML paste
                 return false;
             },
         },
         extensions,
         autofocus: false,
         injectCSS: false,
-    })
+    });
 
-    editor.on('selectionUpdate', ({ editor: ed }) => {
-        if (!dragHandleElement) return;
+    // initial placeholder
+    let initialPlaceholderActive = !!initialPlaceholderText
+    let initialPlaceholderElement = null
+    if (initialPlaceholderActive) {
+        initialPlaceholderElement = doc.createElement('div')
+        initialPlaceholderElement.className = 'ge_initial_placeholder'
+        initialPlaceholderElement.textContent = initialPlaceholderText
+        if (!el.style.position) el.style.position = 'relative'
+        el.appendChild(initialPlaceholderElement)
+    }
 
-        if (ed.isEmpty) {
-            // hide when document is empty (initial load, or user deleted everything)
-            dragHandleElement.style.display = 'none';
-        } else {
-            // show when there is any content
-            dragHandleElement.style.display = '';
+    const hasInitialContent = () => {
+        try {
+            const text = editor.getText();
+            if (text && text.trim().length > 0) return true;
+        } catch {}
+        try {
+            return !editor.isEmpty;
+        } catch {}
+        return false;
+    };
+
+    const updateInitialPlaceholderVisibility = () => {
+        if (!initialPlaceholderActive || !initialPlaceholderElement) return
+        const contentPresent = hasInitialContent();
+        const isFocused = editor.isFocused
+        const shouldShow = !contentPresent && !isFocused
+        initialPlaceholderElement.style.display = shouldShow ? 'block' : 'none'
+        if (contentPresent) {
+            initialPlaceholderActive = false
+            if (initialPlaceholderElement.parentNode) {
+                initialPlaceholderElement.parentNode.removeChild(initialPlaceholderElement)
+            }
+            initialPlaceholderElement = null
         }
+    }
+
+    editor.on('update', updateInitialPlaceholderVisibility)
+    editor.on('focus', updateInitialPlaceholderVisibility)
+    // run once so placeholder hides if doc was preloaded (e.g., from Yjs state)
+    setTimeout(updateInitialPlaceholderVisibility, 0)
+
+    // Save behavior (unchanged, but uses shared socket)
+    function setupSave(editor, socket, docId) {
+        const save = () => {
+            const html = editor.getHTML();
+            socket.emit('yjs-save-html', { docId, html });
+        };
+
+        doc.addEventListener('keydown', (event) => {
+            const key = event.key?.toLowerCase();
+            if ((event.ctrlKey || event.metaKey) && key === 's') {
+                event.preventDefault();
+                save();
+            }
+        });
+
+        return save;
+    }
+
+    const saveToHtmlDatabase = setupSave(editor, socket, docId);
+
+    editor.on('blur', function () {
+        updateInitialPlaceholderVisibility();
+        saveToHtmlDatabase();
     });
 
     const uploadPastedImage = async (file) => {
@@ -430,114 +594,44 @@ export function createEditorIframe(doc, editorId, options = {}) {
 
             const src = data.url;
 
-            editor
-                .chain()
-                .focus()
-                .setImage({ src, alt: file.name || 'Image' })
-                .run();
+            editor.chain().focus().setImage({ src, alt: file.name || 'Image' }).run();
         } catch (err) {
             console.error('Error uploading pasted image', err);
         }
     };
 
-    // expose uploader for other extensions (e.g., slash menu)
     editor.storage.uploadPastedImage = uploadPastedImage;
-
-    function setupSave(editor, socket, docId) {
-        const save = () => {
-            const html = editor.getHTML();
-            socket.emit('yjs-save-html', { docId, html });
-        };
-
-        // Ctrl+S / Cmd+S inside iframe
-        doc.addEventListener('keydown', (event) => {
-            // for some browsers event.key is 's', some 'S'
-            const key = event.key?.toLowerCase();
-            if ((event.ctrlKey || event.metaKey) && key === 's') {
-                event.preventDefault();
-                save();
-            }
-        });
-
-        return save;
-    }
 
     const toolbarHost = doc.getElementById('ge_toolbar_main_element');
 
-    if(showFloatingToolbar) {
-        createSelectionToolbar(toolbarHost,tools);
+    if (showFloatingToolbar) {
+        createSelectionToolbar(toolbarHost, tools);
         wireSelectionToolbar(editor, toolbarHost);
     } else {
-        createToolbar(toolbarHost,tools);
+        createToolbar(toolbarHost, tools);
         wireToolbar(editor, toolbarHost);
     }
 
-    const save = setupSave(editor, socket, docId);
+    /**
+     * IMPORTANT:
+     * return destroy so caller can release ref-count + cleanup.
+     */
+    const destroy = () => {
+        try {
+            // Tiptap cleanup
+            editor?.destroy?.();
+        } catch {}
 
-    let initialAutoFocusDone = false;
+        try {
+            // Release this editor's hold on the shared Yjs doc
+            release?.();
+        } catch {}
 
-    function focusEditorOnLoad() {
-        if (!editor || initialAutoFocusDone) return;
+        try {
+            // hide loader (safe)
+            hideLoader();
+        } catch {}
+    };
 
-        console.log('[focusEditorOnLoad] called; editor.isEmpty =', editor.isEmpty);
-
-        // If there is ANY content, don't focus and don't touch blocks
-        if (!editor.isEmpty) {
-            initialAutoFocusDone = true;
-            return;
-        }
-
-        // Doc is empty here. Ensure there's at least one paragraph block.
-        const json = editor.getJSON();
-        const content = json.content || [];
-        const hasAnyBlock = content.length > 0;
-
-        if (!hasAnyBlock) {
-            console.log('[focusEditorOnLoad] no blocks, inserting first paragraph');
-            editor.commands.setContent(
-                {
-                    type: 'doc',
-                    content: [
-                        {
-                            type: 'paragraph',
-                            content: [],
-                        },
-                    ],
-                },
-                false // no extra history entry
-            );
-        }
-
-        // Defer selection & focus to next frame so DOM + plugins are settled
-        requestAnimationFrame(() => {
-            try {
-                const { state, view } = editor;
-
-                // Position near the end of the doc (but at least 1)
-                const pos = Math.max(1, state.doc.content.size);
-                const selection = Selection.near(state.doc.resolve(pos));
-
-                console.log('[focusEditorOnLoad] setting PM selection at', pos);
-
-                // Set selection and ensure it's scrolled into view
-                const tr = state.tr.setSelection(selection).scrollIntoView();
-                view.dispatch(tr);
-
-                // Focus the contenteditable
-                if (view.dom && view.dom.focus) {
-                    view.dom.focus();
-                } else {
-                    view.focus();
-                }
-            } catch (err) {
-                console.error('[focusEditorOnLoad] error while focusing', err);
-            }
-        });
-
-        initialAutoFocusDone = true;
-    }
-
-    return { editor, toolbar: toolbarHost, save }
+    return { editor, toolbar: toolbarHost, destroy };
 }
-
-

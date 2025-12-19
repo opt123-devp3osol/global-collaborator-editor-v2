@@ -1,7 +1,7 @@
+// editor.js
 import { createEditorIframe } from './iframeEditor.js'
 
 export const baseServerUrl = `https://backend.timebox.ai/global-editor-api`;
-export let userInfo = null
 export let mainEditorDocumentId = null
 
 export class TextEditor {
@@ -10,6 +10,8 @@ export class TextEditor {
             this.iframe = document.getElementById(iframeId)
             this.editor = null
             this.toolbar = null
+            this._destroyInner = null
+
             if (!this.iframe) throw new Error(`Element with ID ${iframeId} not found.`)
             this.iframe.style.border = 'unset'
 
@@ -18,23 +20,39 @@ export class TextEditor {
             mainEditorDocumentId = documentId || null
 
             if (this.iframeDocument) {
-                const { editor, toolbar,save  } = createEditorIframe(this.iframeDocument, editorId, {
+                const { editor, toolbar, destroy } = createEditorIframe(this.iframeDocument, editorId, {
                     ...options,
                     baseServerUrl,
                     mainEditorDocumentId: documentId,
                 });
+
                 this.editor = editor;
                 this.toolbar = toolbar;
+                this._destroyInner = destroy || null;
                 this.options = options || {};
+
                 if (this.options.makeEditorReadOnly) {
                     this.applyReadOnlyMode();
                 }
-                editor.on('blur', () => {
-                    save();
-                });
             }
         } catch (error) {
             console.error(error.message)
+        }
+    }
+
+    destroy() {
+        try {
+            // Release Yjs ref-count + destroy tiptap instance
+            this._destroyInner?.();
+            this._destroyInner = null;
+
+            this.editor = null;
+
+            // Remove toolbar host (optional)
+            if (this.toolbar?.remove) this.toolbar.remove();
+            this.toolbar = null;
+        } catch (e) {
+            console.error('TextEditor.destroy error:', e);
         }
     }
 
@@ -57,9 +75,8 @@ export class TextEditor {
                 overlay.id = 'ql-global-readonly-overlay';
                 host.appendChild(overlay);
 
-                // Block interactions but DO NOT block scrolling:
                 const block = (e) => {
-                    if (e.type === 'wheel' || e.type.startsWith('touch')) return; // let scrolling through
+                    if (e.type === 'wheel' || e.type.startsWith('touch')) return;
                     e.stopImmediatePropagation();
                     e.preventDefault();
                 };
@@ -77,24 +94,16 @@ export class TextEditor {
         }
     }
 
-
-
     appendNonFormattedContentToEditor(data) {
         const doc = this.iframeDocument;
         const editor = this.editor;
         if (!doc || !editor) return;
 
         const insertSilently = (html) => {
-            // remember whether editor had focus
             const hadFocus = editor.view.hasFocus();
-
-            // append at end without moving selection or focusing editor
-            const pos = editor.state.doc.content.size; // end of document
+            const pos = editor.state.doc.content.size;
             editor.commands.insertContentAt(pos, html, { updateSelection: false });
-
-            // if editor didn’t have focus before, keep it that way
             if (!hadFocus) {
-                // avoid accidental focus flicker
                 try { editor.view.dom.blur?.(); } catch {}
             }
         };
@@ -104,7 +113,7 @@ export class TextEditor {
 
             const parser = new DOMParser();
             const parsed = parser.parseFromString(String(wrappedHtml), 'text/html');
-            const root   = parsed.body || parsed.documentElement;
+            const root = parsed.body || parsed.documentElement;
 
             const looksPlain = root && !root.querySelector('*') && (root.textContent || '').trim().length > 0;
             if (looksPlain) {
@@ -117,7 +126,6 @@ export class TextEditor {
                 return;
             }
 
-            // --- sanitize minimal HTML whitelist ---
             const ALLOWED_TAGS = new Set(['P','BR','A','STRONG','EM','U','S','H1','H2','H3','H4','H5','H6','UL','OL','LI','BLOCKQUOTE','PRE','CODE','IMG','VIDEO','AUDIO','SOURCE']);
             const ALLOWED_ATTRS = {
                 'A': new Set(['href','target','rel']),
@@ -139,7 +147,8 @@ export class TextEditor {
                         if (n.startsWith('on') || n === 'style' || n === 'class') node.removeAttribute(a.name);
                     });
                     if (!ALLOWED_TAGS.has(tag)) {
-                        const p = node.parentNode; if (p) { while (node.firstChild) p.insertBefore(node.firstChild, node); p.removeChild(node); }
+                        const p = node.parentNode;
+                        if (p) { while (node.firstChild) p.insertBefore(node.firstChild, node); p.removeChild(node); }
                         return;
                     }
                     const allowed = ALLOWED_ATTRS[tag] || new Set();
@@ -172,12 +181,9 @@ export class TextEditor {
         pastePlaneTextString.call(this, this.iframeDocument, null, wrapped);
     }
 
-
-
     onBlur(callback) {
         try {
             if (typeof callback !== 'function') throw new Error('Callback must be a function.')
-            // Tip: you can hook Tiptap blur via editor.on('blur', ...)
             this.editor?.on?.('blur', callback)
         } catch (error) {
             console.error('Error in onBlur:', error.message)
@@ -191,17 +197,15 @@ export class TextEditor {
     }
 
     setContent(content = {}) {
-        this.editor?.commands?.setContent?.(content,true)
+        this.editor?.commands?.setContent?.(content, true)
     }
 
     updateWidthOfWindow(width) {
-        // optional — using CSS width in iframe creator
         this.editorWidth = width
         this.iframeDocumentWidth = this.iframeDocument.body.clientWidth
         this.iframeDocument.body.style.setProperty('--editor-inner-width', this.editorWidth + 'px')
         this.iframeDocument.body.style.setProperty('--editor-outer-width', this.iframeDocumentWidth + 'px')
     }
-
 
     focusEditor() {
         const editor = this.editor;
@@ -210,11 +214,8 @@ export class TextEditor {
         const json = editor.getJSON();
         const content = json.content || [];
 
-        // Check if there is ANY non-empty block
         const hasNonEmptyBlock = content.some(node => {
             if (!node) return false;
-
-            // Treat any non-paragraph node as "not empty"
             if (node.type !== 'paragraph') return true;
 
             const text = (node.content || [])
@@ -225,31 +226,19 @@ export class TextEditor {
             return text.trim().length > 0;
         });
 
+        if (hasNonEmptyBlock) return;
 
-        if (hasNonEmptyBlock) {
-            return;
-        }
-
-
-        // Normalize to a single empty paragraph (first empty block)
         editor.commands.setContent(
             {
                 type: 'doc',
-                content: [
-                    {
-                        type: 'paragraph',
-                        content: [],
-                    },
-                ],
+                content: [{ type: 'paragraph', content: [] }],
             },
             false
         );
 
-        // Focus on that first empty block
         editor.chain().focus('end').run();
         editor.view.dom.scrollIntoView({ block: 'nearest' });
     }
-
 
     static create(iframeId, editorId, documentId, options) {
         try {
