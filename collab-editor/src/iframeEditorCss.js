@@ -3,7 +3,7 @@ export const CSS = `
                      body,html{ 
                          width:auto;
                          height:auto;
-                         overflow:hidden!important;
+                         overflow:visible!important;
                      }
                      body { 
                          font-family: sans-serif; 
@@ -139,6 +139,27 @@ export const CSS = `
                         overflow: auto;
                         overflow-x: hidden;
                         z-index: 999;
+                    }
+                    /* Keep slash dropdown and floating UI visible within the iframe viewport */
+                    [data-selector="tiptap-slash-dropdown-menu"] {
+                        position: fixed !important;
+                        inset: auto !important;
+                        z-index: 10000;
+                        max-height: calc(100vh - 16px);
+                        overflow: visible;
+                    }
+                    [data-selector="tiptap-slash-dropdown-menu"] .tiptap-card,
+                    [data-selector="tiptap-slash-dropdown-menu"] .tiptap-card-body {
+                        max-height: calc(100vh - 32px);
+                        overflow: auto;
+                    }
+                    .ge_slash-dropdown-menu {
+                        max-height: calc(100vh - 32px);
+                    }
+                    .ge_selection_toolbar,
+                    .tiptap-toolbar,
+                    .ql-blot-format-toolbar {
+                        z-index: 10005 !important;
                     }
                     .ge_e_overlay_editor_block_events {
                         position: fixed;
@@ -1128,7 +1149,6 @@ img.ProseMirror-separator {
 }
 
 .doc_placeholder_container{
-    height:100%;
     width:100%;
     margin:auto;
 }

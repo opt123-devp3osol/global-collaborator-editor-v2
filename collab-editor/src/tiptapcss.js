@@ -794,17 +794,17 @@ button.ql-blot-format-toolbar__button_dropdown-menu_item.is-disabled {
     margin-bottom: 3rem
 }
 
-.tiptap.ProseMirror.ProseMirror-focused .is-empty:not(.with-slash)[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
+.tiptap.ProseMirror .is-empty:not(.with-slash)[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
     content: attr(data-placeholder)
     font-style: italic;
 }
 
-.tiptap.ProseMirror.ProseMirror-focused .is-empty.with-slash[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
+.tiptap.ProseMirror .is-empty.with-slash[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
     content: "Write or type '/' for command and more options";
     font-style: italic
 }
 
-.tiptap.ProseMirror.ProseMirror-focused .is-empty[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
+.tiptap.ProseMirror .is-empty[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
     pointer-events: none;
     height: 0;
     position: absolute;
@@ -814,7 +814,7 @@ button.ql-blot-format-toolbar__button_dropdown-menu_item.is-disabled {
     right: 0
 }
 
-.tiptap.ProseMirror.ProseMirror-focused .is-empty[data-placeholder]:has(>.ProseMirror-trailingBreak):before {
+.tiptap.ProseMirror .is-empty[data-placeholder]:has(>.ProseMirror-trailingBreak):before {
     color: var(--placeholder-color)
 }
 

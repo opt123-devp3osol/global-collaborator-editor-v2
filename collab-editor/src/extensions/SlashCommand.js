@@ -127,7 +127,7 @@ export default Extension.create({
                         if (!rect) return
                         const vw = (el.ownerDocument?.defaultView?.innerWidth) || window.innerWidth
                         const vh = (el.ownerDocument?.defaultView?.innerHeight) || window.innerHeight
-                        el.style.position = 'absolute'
+                        el.style.position = 'fixed'
                         el.style.left = '0px'
                         el.style.top  = '0px'
                         el.style.zIndex = '10001'
@@ -140,7 +140,8 @@ export default Extension.create({
                         const aboveY = Math.round(rect.top - menuRect.height - 6)
                         const fitsBelow = rect.bottom + 6 + menuRect.height <= vh
                         const fitsAbove = rect.top - 6 - menuRect.height >= 0
-                        const y = fitsBelow || !fitsAbove ? belowY : aboveY
+                        const yCandidate = fitsBelow || !fitsAbove ? belowY : aboveY
+                        const y = Math.min(Math.max(yCandidate, 8), Math.max(8, vh - menuRect.height - 8))
                         const x = Math.min(Math.max(Math.round(rect.left), 8), Math.max(8, vw - menuRect.width - 8))
                         el.style.transform = `translate(${x}px, ${y}px)`
                     }

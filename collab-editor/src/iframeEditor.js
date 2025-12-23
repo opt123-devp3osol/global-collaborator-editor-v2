@@ -273,7 +273,6 @@ export function createEditorIframe(doc, editorId, options = {}) {
         showFloatingToolbar = false,
         baseServerUrl = 'https://backend.timebox.ai/global-editor-api',
         mainEditorDocumentId,
-        initialPlaceholderText = `Write or type '/' for command and more options`,
         userName: optUserName,
         userColor: optUserColor,
         yjs: yjsOptions = {},
@@ -459,7 +458,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
         Color,
         FontCommands,
         Placeholder.configure({
-            placeholder: 'Start typing...',
+            placeholder: "Write or type '/' for command and more options",
             includeChildren: false,
             showOnlyCurrent: true,
             showOnlyWhenEditable: true,
@@ -499,48 +498,6 @@ export function createEditorIframe(doc, editorId, options = {}) {
         injectCSS: false,
     });
 
-    // initial placeholder
-    let initialPlaceholderActive = !!initialPlaceholderText
-    let initialPlaceholderElement = null
-    if (initialPlaceholderActive) {
-        initialPlaceholderElement = doc.createElement('div')
-        initialPlaceholderElement.className = 'ge_initial_placeholder'
-        initialPlaceholderElement.textContent = initialPlaceholderText
-        if (!el.style.position) el.style.position = 'relative'
-        el.appendChild(initialPlaceholderElement)
-    }
-
-    const hasInitialContent = () => {
-        try {
-            const text = editor.getText();
-            if (text && text.trim().length > 0) return true;
-        } catch {}
-        try {
-            return !editor.isEmpty;
-        } catch {}
-        return false;
-    };
-
-    const updateInitialPlaceholderVisibility = () => {
-        if (!initialPlaceholderActive || !initialPlaceholderElement) return
-        const contentPresent = hasInitialContent();
-        const isFocused = editor.isFocused
-        const shouldShow = !contentPresent && !isFocused
-        initialPlaceholderElement.style.display = shouldShow ? 'block' : 'none'
-        if (contentPresent) {
-            initialPlaceholderActive = false
-            if (initialPlaceholderElement.parentNode) {
-                initialPlaceholderElement.parentNode.removeChild(initialPlaceholderElement)
-            }
-            initialPlaceholderElement = null
-        }
-    }
-
-    editor.on('update', updateInitialPlaceholderVisibility)
-    editor.on('focus', updateInitialPlaceholderVisibility)
-    // run once so placeholder hides if doc was preloaded (e.g., from Yjs state)
-    setTimeout(updateInitialPlaceholderVisibility, 0)
-
     // Save behavior (unchanged, but uses shared socket)
     function setupSave(editor, socket, docId) {
         const save = () => {
@@ -562,7 +519,6 @@ export function createEditorIframe(doc, editorId, options = {}) {
     const saveToHtmlDatabase = setupSave(editor, socket, docId);
 
     editor.on('blur', function () {
-        updateInitialPlaceholderVisibility();
         saveToHtmlDatabase();
     });
 

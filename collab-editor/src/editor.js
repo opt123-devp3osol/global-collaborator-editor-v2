@@ -190,6 +190,15 @@ export class TextEditor {
         }
     }
 
+    editorOnChange(callback) {
+        try {
+            if (typeof callback !== 'function') throw new Error('Callback must be a function.')
+            this.editor?.on?.('update', callback)
+        } catch (error) {
+            console.error('Error in edntorOnChange:', error.message)
+        }
+    }
+
     getContent(format = 'text') {
         if (!this.editor) return ''
         if (format?.toLowerCase() === 'html') return this.editor.getHTML()
