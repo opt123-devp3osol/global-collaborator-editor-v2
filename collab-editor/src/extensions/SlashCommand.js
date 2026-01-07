@@ -122,12 +122,15 @@ export default Extension.create({
                 // inside addOptions().suggestion.render = () => { ... }
                 render: () => {
 
-                    const positionMenu = (el, rectGetter) => {
+                    const positionMenu = (el, rectGetter, doc) => {
                         const rect = rectGetter?.()
                         if (!rect) return
-                        const vw = (el.ownerDocument?.defaultView?.innerWidth) || window.innerWidth
-                        const vh = (el.ownerDocument?.defaultView?.innerHeight) || window.innerHeight
-                        el.style.position = 'fixed'
+                        const win = doc?.defaultView || window
+                        const vw = win.innerWidth
+                        const vh = win.innerHeight
+                        const scrollX = win.scrollX || doc?.documentElement?.scrollLeft || 0
+                        const scrollY = win.scrollY || doc?.documentElement?.scrollTop || 0
+                        el.style.position = 'absolute'
                         el.style.left = '0px'
                         el.style.top  = '0px'
                         el.style.zIndex = '10001'
@@ -141,8 +144,8 @@ export default Extension.create({
                         const fitsBelow = rect.bottom + 6 + menuRect.height <= vh
                         const fitsAbove = rect.top - 6 - menuRect.height >= 0
                         const yCandidate = fitsBelow || !fitsAbove ? belowY : aboveY
-                        const y = Math.min(Math.max(yCandidate, 8), Math.max(8, vh - menuRect.height - 8))
-                        const x = Math.min(Math.max(Math.round(rect.left), 8), Math.max(8, vw - menuRect.width - 8))
+                        const y = Math.min(Math.max(yCandidate, 8), Math.max(8, vh - menuRect.height - 8)) + scrollY
+                        const x = Math.min(Math.max(Math.round(rect.left + scrollX), 8), Math.max(8, vw + scrollX - menuRect.width - 8))
                         el.style.transform = `translate(${x}px, ${y}px)`
                     }
 
@@ -295,7 +298,7 @@ export default Extension.create({
                         })
                         const fi = firstEnabledIndex()
                         setActive(fi >= 0 ? fi : 0)
-                        positionMenu(root, props.clientRect, view)
+                        positionMenu(root, props.clientRect, doc)
                     }
 
                     // Plainify the /query: replace the decorated range with raw text `/${query}`
@@ -315,7 +318,6 @@ export default Extension.create({
 
                             // 10-word guard on open
                             if (wordCount(props.query) > 10) { plainifyQueryAndClose(props); return }
-                            else { closeSuggestions(props) }
 
                             const shell = buildShell(doc)
                             root = shell.outer

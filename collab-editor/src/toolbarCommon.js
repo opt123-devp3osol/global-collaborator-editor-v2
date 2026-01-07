@@ -317,12 +317,103 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
             e.stopPropagation();
             const isOpen = dd.classList.contains('open');
             closeAllDropdowns();
-            if (!isOpen) dd.classList.add('open');
+            if (!isOpen) {
+                dd.classList.add('open');
+                requestAnimationFrame(() => updateDropdownPosition(btn, dd));
+            }
         });
     };
 
     const rootDoc = (root && root.ownerDocument) ? root.ownerDocument : (typeof document !== 'undefined' ? document : null);
     rootDoc && rootDoc.addEventListener('click', () => closeAllDropdowns());
+    rootDoc && rootDoc.addEventListener('scroll', () => reflowOpenDropdowns(), true);
+    rootDoc?.defaultView?.addEventListener('resize', () => reflowOpenDropdowns());
+
+    // Inject minimal CSS to flip tooltip arrow/position when forced above.
+    function ensureTooltipFlipStyles() {
+        if (!rootDoc) return;
+        if (rootDoc.getElementById('ge-tooltip-flip-style')) return;
+        const style = rootDoc.createElement('style');
+        style.id = 'ge-tooltip-flip-style';
+        style.textContent = `
+          .ge_tooltip_wrapper.tooltip-below{top:100%;bottom:auto;margin-top:2px;margin-bottom:0;}
+          .ge_tooltip_wrapper.tooltip-below:after{top:-3px;bottom:auto;}
+          .ge_tooltip_wrapper.tooltip-above{bottom:100%;top:auto;margin-bottom:8px;margin-top:0;}
+          .ge_tooltip_wrapper.tooltip-above:after{bottom:-4px;top:auto;}
+          .dropdown-content.dropdown-below{top:100%;bottom:auto;margin-top:6px;margin-bottom:0;}
+          .dropdown-content.dropdown-above{bottom:100%;top:auto;margin-bottom:6px;margin-top:0;}
+          .dropdown-content.dropdown-below,
+          .dropdown-content.dropdown-above{overflow-y:auto;}
+        `;
+        (rootDoc.head || rootDoc.body || rootDoc.documentElement).appendChild(style);
+    }
+
+    const measureElement = (el) => {
+        const prevVis = el.style.visibility;
+        const prevDisplay = el.style.display;
+        el.style.visibility = 'hidden';
+        el.style.display = 'block';
+        const rect = el.getBoundingClientRect();
+        el.style.visibility = prevVis;
+        el.style.display = prevDisplay;
+        return rect;
+    };
+
+    const updateTooltipPosition = (wrap) => {
+        if (!wrap || !rootDoc) return;
+        const tooltip = wrap.querySelector('.ge_tooltip_wrapper');
+        if (!tooltip) return;
+
+        ensureTooltipFlipStyles();
+        const tooltipRect = measureElement(tooltip);
+        const wrapRect = wrap.getBoundingClientRect();
+        const bodyRect = rootDoc.body.getBoundingClientRect();
+        const spaceBelow = bodyRect.bottom - wrapRect.bottom;
+        const spaceAbove = wrapRect.top - bodyRect.top;
+
+        const placeBelow = spaceBelow >= (tooltipRect.height + 8) || spaceBelow >= spaceAbove;
+        tooltip.classList.toggle('tooltip-below', placeBelow);
+        tooltip.classList.toggle('tooltip-above', !placeBelow);
+    };
+
+    function enableAutoTooltipPositioning() {
+        if (!rootDoc) return;
+        $$('.tool_bar_wrap').forEach(wrap => {
+            const handler = () => updateTooltipPosition(wrap);
+            wrap.addEventListener('mouseenter', handler);
+            wrap.addEventListener('focusin', handler);
+        });
+    }
+
+    const updateDropdownPosition = (btn, dd) => {
+        if (!btn || !dd || !rootDoc) return;
+        ensureTooltipFlipStyles();
+        const ddRect = measureElement(dd);
+        const btnRect = btn.getBoundingClientRect();
+        const bodyRect = rootDoc.body.getBoundingClientRect();
+
+        const spaceBelow = bodyRect.bottom - btnRect.bottom;
+        const spaceAbove = btnRect.top - bodyRect.top;
+        const gap = 8;
+
+        const availableBelow = Math.max(0, spaceBelow - gap);
+        const availableAbove = Math.max(0, spaceAbove - gap);
+        const placeBelow = availableBelow >= availableAbove;
+        const available = placeBelow ? availableBelow : availableAbove;
+        const maxHeight = Math.max(80, Math.floor(available || ddRect.height));
+
+        dd.style.maxHeight = `${maxHeight}px`;
+        dd.style.overflowY = 'auto';
+        dd.classList.toggle('dropdown-below', placeBelow);
+        dd.classList.toggle('dropdown-above', !placeBelow);
+    };
+
+    const reflowOpenDropdowns = () => {
+        $$('.dropdown-content.open').forEach(dd => {
+            const btn = dd.closest('.global_editor_button_group')?.querySelector('.dropdown-button');
+            updateDropdownPosition(btn, dd);
+        });
+    };
 
     const getActiveAlign = () => {
         const p = editor.getAttributes('paragraph') || {};
@@ -777,6 +868,9 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
         editor.chain().focus().unsetAllMarks().clearNodes().run();
         refresh();
     }));
+
+    // Position tooltips so they don't spill outside the iframe/body.
+    enableAutoTooltipPositioning();
 
     return refresh;
 }

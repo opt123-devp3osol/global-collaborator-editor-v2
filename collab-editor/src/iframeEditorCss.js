@@ -142,20 +142,16 @@ export const CSS = `
                     }
                     /* Keep slash dropdown and floating UI visible within the iframe viewport */
                     [data-selector="tiptap-slash-dropdown-menu"] {
-                        position: fixed !important;
-                        inset: auto !important;
+                        position: absolute !important;
                         z-index: 10000;
-                        max-height: calc(100vh - 16px);
                         overflow: visible;
                     }
                     [data-selector="tiptap-slash-dropdown-menu"] .tiptap-card,
                     [data-selector="tiptap-slash-dropdown-menu"] .tiptap-card-body {
-                        max-height: calc(100vh - 32px);
                         overflow: auto;
+                        max-height: 192px;
                     }
-                    .ge_slash-dropdown-menu {
-                        max-height: calc(100vh - 32px);
-                    }
+                    
                     .ge_selection_toolbar,
                     .tiptap-toolbar,
                     .ql-blot-format-toolbar {
