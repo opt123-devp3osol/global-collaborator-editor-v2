@@ -148,6 +148,9 @@ export const ResizableImage = Node.create({
             let startW = 0
             let activeSide = 'right'
             let prevDraggableAttr = 'true'
+            let resizeBody = null
+
+            const resolveBody = (el) => el?.ownerDocument?.body || el?.closest?.('body') || outer.ownerDocument?.body
 
             const onMove = (e) => {
                 if (!resizing) return
@@ -175,8 +178,10 @@ export const ResizableImage = Node.create({
                 resizing = false
                 // release capture (safe even if not captured)
                 try { e.target.releasePointerCapture(e.pointerId) } catch (_) {}
-                e.target.closest('body').removeEventListener('mousemove', onMove, true)
-                e.target.closest('body').removeEventListener('mouseup', onUp, true)
+                const body = resizeBody || resolveBody(e.target)
+                resizeBody = null
+                body?.removeEventListener('mousemove', onMove, true)
+                body?.removeEventListener('mouseup', onUp, true)
                 // restore draggable
                 if (prevDraggableAttr != null) outer.setAttribute('draggable', prevDraggableAttr)
                 commitWidth()
@@ -185,6 +190,8 @@ export const ResizableImage = Node.create({
             }
 
             const beginResize = ({side, e}) => {
+                const body = resolveBody(e.target)
+                if (!body) return
                 e.preventDefault()
                 e.stopPropagation()
                 ensureHandles()
@@ -192,13 +199,14 @@ export const ResizableImage = Node.create({
                 activeSide = side
                 startX = e.clientX
                 startW = container.getBoundingClientRect().width
+                resizeBody = body
                 // disable node dragging while resizing
                 prevDraggableAttr = outer.getAttribute('draggable') ?? 'true'
                 outer.setAttribute('draggable', 'false')
                 // capture pointer so we keep getting move events
                 try { e.target.setPointerCapture(e.pointerId) } catch (_) {}
-                e.target.closest('body').addEventListener('mousemove', onMove, true)
-                e.target.closest('body').addEventListener('mouseup', onUp, true)
+                body.addEventListener('mousemove', onMove, true)
+                body.addEventListener('mouseup', onUp, true)
             }
 
             const onDownLeft  = (e) => beginResize({side: 'left', e: e})
@@ -256,8 +264,10 @@ export const ResizableImage = Node.create({
                 },
                 destroy() {
                     toolbarApi?.destroy()
-                    outer.closest('body').removeEventListener('mousemove', onMove, true)
-                    outer.closest('body').removeEventListener('mouseup', onUp, true)
+                    const body = resizeBody || resolveBody(outer)
+                    resizeBody = null
+                    body?.removeEventListener('mousemove', onMove, true)
+                    body?.removeEventListener('mouseup', onUp, true)
                 },
             }
         }
