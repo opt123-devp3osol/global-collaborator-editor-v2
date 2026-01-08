@@ -657,6 +657,7 @@ button.ql-blot-format-toolbar__button_dropdown-menu_item.is-disabled {
 .tiptap.ProseMirror {
     white-space: pre-wrap;
     outline: none;
+    display:block;
     caret-color: var(--tt-cursor-color)
 }
 
