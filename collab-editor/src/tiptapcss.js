@@ -246,7 +246,7 @@ export const TIPTAPCSS = `
     --tt-color-highlight-pink-contrast: rgba(220,76,145,0.22)
 }
 
-.tiptap.ProseMirror {
+
     --tt-checklist-bg-color: var(--tt-gray-light-a-100);
     --tt-checklist-bg-active-color: var(--tt-gray-light-a-900);
     --tt-checklist-border-color: var(--tt-gray-light-a-200);
@@ -637,7 +637,8 @@ button.ql-blot-format-toolbar__button_dropdown-menu_item.is-disabled {
     --thread-text: var(--tt-gray-light-900);
     --placeholder-color: var(--tt-gray-light-a-400);
     --thread-bg-color: var(--tt-color-yellow-inc-2);
-    --tiptap-ai-insertion-color: var(--tt-brand-color-600)
+    --tiptap-ai-insertion-color: var(--tt-brand-color-600);
+    display: block;
 }
 
 .dark .tiptap.ProseMirror {

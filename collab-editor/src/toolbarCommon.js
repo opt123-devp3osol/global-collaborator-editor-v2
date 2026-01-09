@@ -146,7 +146,6 @@ export function buildToolbarButtonsHtml(tools = []) {
         `;
     }
 
-
     if (tools.includes('font') || !tools?.length) {
         html += `
           <!-- Font Family -->
