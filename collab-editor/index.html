@@ -36,9 +36,12 @@
   document.addEventListener('DOMContentLoaded', () => {
     let options = {
       tools:[],
+      object_id:'213123-123-fdg',
+      object_type:'editor',
+      timebox_appended_note_type_id:3,
       showFloatingToolbar:true,
       makeEditorReadOnly: false,
-      width:850,
+      width:1000,
       height:300
     }
     GlobalTextEditorLib.TextEditor.create('editor_iframe','editor','213123-123-fdg',options);

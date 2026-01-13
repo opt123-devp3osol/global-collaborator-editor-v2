@@ -12,18 +12,37 @@ import {insertCommonApiCall, updateCommonApiCall} from "./commonModelHelper.js";
 
 const yDocs = new Map();           // docId -> Y.Doc
 const awarenessStates = new Map(); // docId -> Awareness
+const yDocMeta = new Map();        // docId -> meta (object_id, object_type, timebox_appended_note_type_id)
 // Track which docs we already pulled from DB
 const loadedDocsFromDB = new Set();
 // Debounce timers per doc
 const saveTimers = new Map();
 
-function getYDoc(docId) {
+function getYDoc(docId, meta = {}) {
   let doc = yDocs.get(docId);
   if (!doc) {
     doc = new Y.Doc();
     yDocs.set(docId, doc);
     attachAutosave(docId, doc);
   }
+
+  const { object_id, object_type, timebox_appended_note_type_id } = meta;
+  if (
+      object_id !== undefined ||
+      object_type !== undefined ||
+      timebox_appended_note_type_id !== undefined
+  ) {
+    const existing = yDocMeta.get(docId) || {};
+    yDocMeta.set(docId, {
+      object_id: object_id !== undefined ? object_id : existing.object_id ?? null,
+      object_type: object_type !== undefined ? object_type : existing.object_type ?? null,
+      timebox_appended_note_type_id:
+          timebox_appended_note_type_id !== undefined
+              ? timebox_appended_note_type_id
+              : existing.timebox_appended_note_type_id ?? null,
+    });
+  }
+
   return doc;
 }
 
@@ -67,11 +86,26 @@ async function loadYDocFromDB(docId, ydoc) {
 async function upsertYDocToDB(docId, ydoc) {
   const update = Y.encodeStateAsUpdate(ydoc);
   const buffer = Buffer.from(update);
+  const {
+    object_id = null,
+    object_type = null,
+    timebox_appended_note_type_id = null,
+  } = yDocMeta.get(docId) || {};
+
+  const updateColumns = [
+    'y_state = $1',
+    'updated_at = now()',
+    'object_id = $2',
+    'object_type = $3',
+    'timebox_appended_note_type_id = $4',
+  ];
+  const updateValues = [buffer, object_id, object_type, timebox_appended_note_type_id];
+
   // 1) try UPDATE
   const updated = await updateCommonApiCall({
     tableName: 'global_editor_doc_data',
-    column: ['y_state = $1', 'updated_at = now()'],
-    value: [buffer],
+    column: updateColumns,
+    value: updateValues,
     whereCondition: `id = '${docId}'`,
     returnColumnName: 'id',
   });
@@ -83,9 +117,9 @@ async function upsertYDocToDB(docId, ydoc) {
   // 2) no row -> INSERT
   await insertCommonApiCall({
     tableName: 'global_editor_doc_data',
-    column: ['id', 'y_state', 'doc_html'],
-    alias: ['$1', '$2', '$3'],
-    values: [docId, buffer, null],
+    column: ['id', 'y_state', 'doc_html', 'object_id', 'object_type', 'timebox_appended_note_type_id'],
+    alias: ['$1', '$2', '$3', '$4', '$5', '$6'],
+    values: [docId, buffer, null, object_id, object_type, timebox_appended_note_type_id],
   });
 }
 
@@ -194,12 +228,21 @@ globalEditorNamespace.on('connection', (socket) => {
   });
 
   // Client joins a Yjs document
-  socket.on('joinYDoc', async (docId) => {
+  socket.on('joinYDoc', async (payload = {}) => {
+    const {
+      docId,
+      object_id,
+      object_type,
+      timebox_appended_note_type_id,
+    } = typeof payload === 'string' ? { docId: payload } : (payload || {});
+
+    if (!docId) return;
+
     console.log(`Client ${userID} joining YDoc: ${docId}`);
     socket.join(docId);
     joinedYDocs.add(docId);
 
-    const ydoc = getYDoc(docId);
+    const ydoc = getYDoc(docId, { object_id, object_type, timebox_appended_note_type_id });
 
     // 🔹 ensure we have the latest state from DB
     await loadYDocFromDB(docId, ydoc);
@@ -219,10 +262,10 @@ globalEditorNamespace.on('connection', (socket) => {
   });
 
   // Receive Yjs document updates from a client
-  socket.on('yjs-update', ({ docId, update }) => {
+  socket.on('yjs-update', ({ docId, update, object_id, object_type, timebox_appended_note_type_id }) => {
     if (!docId || !update) return;
 
-    const ydoc = getYDoc(docId);
+    const ydoc = getYDoc(docId, { object_id, object_type, timebox_appended_note_type_id });
 
     // Normalize update to Uint8Array
     const u =

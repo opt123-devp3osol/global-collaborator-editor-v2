@@ -93,7 +93,12 @@ function createProviderManager(baseServerUrl, options = {}) {
     socket.on('connect', () => {
         for (const [docId, entry] of docs.entries()) {
             if (entry.refCount > 0) {
-                socket.emit('joinYDoc', docId);
+                socket.emit('joinYDoc', {
+                    docId,
+                    object_id: entry.meta?.object_id,
+                    object_type: entry.meta?.object_type,
+                    timebox_appended_note_type_id: entry.meta?.timebox_appended_note_type_id,
+                });
                 // push local awareness state after reconnect
                 try {
                     const localState = entry.awareness.getLocalState();
@@ -107,7 +112,7 @@ function createProviderManager(baseServerUrl, options = {}) {
         }
     });
 
-    const ensureDoc = (docId, user) => {
+    const ensureDoc = (docId, user, docMeta = {}) => {
         let entry = docs.get(docId);
         if (!entry) {
             const ydoc = new Y.Doc();
@@ -119,8 +124,11 @@ function createProviderManager(baseServerUrl, options = {}) {
                 refCount: 0,
                 bound: false,
                 onYDocUpdate: null,
+                meta: { ...docMeta },
             };
             docs.set(docId, entry);
+        } else {
+            entry.meta = { ...entry.meta, ...docMeta };
         }
 
         // Always set local user state for this tab (safe to call repeatedly)
@@ -140,7 +148,13 @@ function createProviderManager(baseServerUrl, options = {}) {
 
             // Local doc updates -> server
             entry.onYDocUpdate = (update) => {
-                socket.emit('yjs-update', { docId, update });
+                socket.emit('yjs-update', {
+                    docId,
+                    update,
+                    object_id: entry.meta?.object_id,
+                    object_type: entry.meta?.object_type,
+                    timebox_appended_note_type_id: entry.meta?.timebox_appended_note_type_id,
+                });
             };
             entry.ydoc.on('update', entry.onYDocUpdate);
         }
@@ -188,13 +202,18 @@ function createProviderManager(baseServerUrl, options = {}) {
         }
     });
 
-    const acquire = (docId, user) => {
-        const entry = ensureDoc(docId, user);
+    const acquire = (docId, user, docMeta = {}) => {
+        const entry = ensureDoc(docId, user, docMeta);
         entry.refCount += 1;
 
         // join room on first consumer
         if (entry.refCount === 1) {
-            socket.emit('joinYDoc', docId);
+            socket.emit('joinYDoc', {
+                docId,
+                object_id: entry.meta?.object_id,
+                object_type: entry.meta?.object_type,
+                timebox_appended_note_type_id: entry.meta?.timebox_appended_note_type_id,
+            });
         }
 
         // Provider object for CollaborationCaret
@@ -276,6 +295,9 @@ export function createEditorIframe(doc, editorId, options = {}) {
         userName: optUserName,
         userColor: optUserColor,
         yjs: yjsOptions = {},
+        object_id,
+        object_type,
+        timebox_appended_note_type_id,
     } = options
 
     const isFirefoxExtension =
@@ -383,7 +405,11 @@ export function createEditorIframe(doc, editorId, options = {}) {
 
     // Acquire shared Yjs doc/awareness/socket for this docId
     const mgr = getGlobalProviderManager(baseServerUrl, yjsOptions);
-    const { ydoc, awareness, provider, socket, release } = mgr.acquire(docId, { name: userName, color: userColor });
+    const { ydoc, awareness, provider, socket, release } = mgr.acquire(
+        docId,
+        { name: userName, color: userColor },
+        { object_id, object_type, timebox_appended_note_type_id },
+    );
 
     // Ensure awareness is cleared when this page closes (good hygiene)
     // NOTE: This is per-tab and applies to all docIds; OK.

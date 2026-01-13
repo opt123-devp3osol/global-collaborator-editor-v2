@@ -237,11 +237,8 @@ export default Extension.create({
                             background: 'transparent',
                             pointerEvents: 'auto',
                         })
-                        const block = (e) => { e.preventDefault(); e.stopPropagation() }
-                        overlay.addEventListener('mousedown', (e) => { block(e); onClose?.() })
-                        overlay.addEventListener('touchstart', (e) => { block(e); onClose?.() }, { passive: false })
-                        overlay.addEventListener('wheel', block, { passive: false })
-                        overlay.addEventListener('scroll', block, { passive: false })
+                        overlay.addEventListener('mousedown', () => { onClose?.() })
+                        overlay.addEventListener('touchstart', () => { onClose?.() }, { passive: true })
                         doc.body.appendChild(overlay)
                     }
 
@@ -330,9 +327,8 @@ export default Extension.create({
                                 if (!root) return
                                 const t = e.target
                                 const clickedInsideMenu = root.contains(t)
-                                const clickedInsideEditor = view.dom.contains(t)
-                                if (!clickedInsideMenu && !clickedInsideEditor) {
-                                    // just close; decoration disappears and text stays
+                                if (!clickedInsideMenu) {
+                                    // Close when clicking anywhere outside the menu (including editor)
                                     closeSuggestions(props)
                                 }
                             }
