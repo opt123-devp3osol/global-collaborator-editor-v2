@@ -221,8 +221,7 @@ export default Extension.create({
                     let root, body, doc, view
                     let currentItems = []
                     let activeIndex = 0
-                    let outsideClickHandler = null
-                    let focusOutHandler = null
+                    let blurHandler = null
                     let currentEditor = null
                     let overlay = null
 
@@ -237,8 +236,10 @@ export default Extension.create({
                             background: 'transparent',
                             pointerEvents: 'auto',
                         })
-                        overlay.addEventListener('mousedown', () => { onClose?.() })
-                        overlay.addEventListener('touchstart', () => { onClose?.() }, { passive: true })
+                        const handleClose = () => { closeSuggestions?.() }
+                        overlay.addEventListener('mousedown', handleClose)
+                        overlay.addEventListener('click', handleClose)
+                        overlay.addEventListener('touchstart', handleClose, { passive: true })
                         doc.body.appendChild(overlay)
                     }
 
@@ -254,12 +255,11 @@ export default Extension.create({
                         } else {
                             // fallback cleanup if command is missing
                             root?.remove()
-                            if (doc && outsideClickHandler) doc.removeEventListener('mousedown', outsideClickHandler, true)
-                            if (doc && focusOutHandler) doc.removeEventListener('focusout', focusOutHandler, true)
+                            if (view?.dom && blurHandler) view.dom.removeEventListener('blur', blurHandler, true)
                             root = body = doc = view = null
                             currentItems = []
                             activeIndex = 0
-                            outsideClickHandler = focusOutHandler = null
+                            blurHandler = null
                             detachOverlay()
                         }
                     }
@@ -323,31 +323,23 @@ export default Extension.create({
                             rebuild(props)
 
                             // --- Outside click / focus-out to close ---
-                            outsideClickHandler = (e) => {
-                                if (!root) return
-                                const t = e.target
-                                const clickedInsideMenu = root.contains(t)
-                                if (!clickedInsideMenu) {
-                                    // Close when clicking anywhere outside the menu (including editor)
+                            blurHandler = () => {
+                                const active = doc?.activeElement
+                                const insideMenu = root && active && root.contains(active)
+                                const insideEditor = view?.dom && active && view.dom.contains(active)
+                                if (!insideMenu && !insideEditor) {
                                     closeSuggestions(props)
                                 }
                             }
-                            focusOutHandler = (e) => {
-                                // when focus leaves both editor and menu, close
-                                const t = e.target
-                                const related = e.relatedTarget
-                                const leavingMenu = root && root.contains(t) && (!related || !root.contains(related))
-                                const leavingEditor = view.dom.contains(t) && (!related || !view.dom.contains(related))
-                                if (leavingMenu && leavingEditor) closeSuggestions(props)
-                            }
 
-                            // Use ownerDocument to be iframe-safe
-                            doc.addEventListener('mousedown', outsideClickHandler, true)
-                            doc.addEventListener('focusout', focusOutHandler, true)
+                            doc.addEventListener('blur', blurHandler, true)
+                            root?.addEventListener('blur', blurHandler, true)
+                            view.dom.addEventListener('blur', blurHandler, true)
                         },
 
                         onUpdate: (props) => {
                             currentEditor = props.editor
+                            if (!props.editor?.isFocused?.()) { plainifyQueryAndClose(props); return }
                             // 10-word guard during typing
                             if (wordCount(props.query) > 10) { plainifyQueryAndClose(props); return }
                             rebuild(props)
@@ -402,12 +394,13 @@ export default Extension.create({
                             currentEditor = null
                             detachOverlay()
                             root?.remove()
-                            if (doc && outsideClickHandler) doc.removeEventListener('mousedown', outsideClickHandler, true)
-                            if (doc && focusOutHandler) doc.removeEventListener('focusout', focusOutHandler, true)
+                            if (doc && blurHandler) doc.removeEventListener('blur', blurHandler, true)
+                            if (root && blurHandler) root.removeEventListener('blur', blurHandler, true)
+                            if (view?.dom && blurHandler) view.dom.removeEventListener('blur', blurHandler, true)
                             root = body = doc = view = null
                             currentItems = []
                             activeIndex = 0
-                            outsideClickHandler = focusOutHandler = null
+                            blurHandler = null
                         },
                     }
                 }
