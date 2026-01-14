@@ -19,7 +19,13 @@ export const CSS = `
                     .global_editor_toolbar_button_pane .global_editor_button_group{box-sizing:border-box;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-flex-wrap:wrap;-ms-flex-wrap:wrap;flex-wrap:wrap}
                     .global_editor_toolbar_button_pane .global_editor_button_group::after{content:" ";display:block;width:1px;background:#d7e0e2;margin:0 5px;height:35px;vertical-align:top}
                     .global_editor_toolbar_button_pane button,.global_editor_toolbar_button_pane input[type=color],.global_editor_toolbar_button_pane select{display:block;position:relative;width:35px;height:35px;padding:1px 6px!important;margin-bottom:1px;overflow:hidden;border:none;cursor:pointer;background:0 0;vertical-align:middle;-webkit-transition:background-color 150ms,opacity 150ms;-o-transition:background-color 150ms,opacity 150ms;transition:background-color 150ms,opacity 150ms;font-family:"Open Sans",sans-serif;font-size:18px;color:#222;text-transform:none;line-height:normal;font-weight:400}
-                    .global_editor_toolbar_button_pane svg{color:#222;}
+                    .ele_divider {
+                        height: 18px;
+                        width: 1px;
+                        background: #e2e2e2;
+                        margin: 0 6px;
+                    }
+                   
                     .global_editor_toolbar_button_pane button:active,.global_editor_toolbar_button_pane input[type=color]:active,.global_editor_toolbar_button_pane select:active{transform:scale(.95)}
                     .global_editor_toolbar_button_pane select{padding:5px}
                     .global_editor_toolbar_button_pane input[type=color]{width:40px;height:35px;border:none;padding:0}
@@ -52,7 +58,7 @@ export const CSS = `
                     .global_editor_edit_main_area table td::after,.global_editor_edit_main_area table th{content:'';top:0;right:0;width:5px;position:absolute;cursor:col-resize;user-select:none;background-color:var(--resizer-color);height:var(--resizer-height)}
   
                     .global_editor_textarea_section{display:block;-webkit-box-flex:1;-webkit-flex:1;-moz-box-flex:1;-ms-flex:1;flex:1;margin-bottom:1px;position:relative;overflow:auto;font-size:14px;font-family:Consolas,Courier,"Courier New",monospace;line-height:18px;color:#222;font-weight:300;height:100%!important;width:100%!important;resize:none!important;padding:15px;border:none!important;margin-top:10px;background-color:#fff;border-radius:4px;box-shadow:0 2px 5px rgba(0,0,0,.1)}
-                    .global_editor_button_group .dropdown-content{display:none;position:absolute;background-color:#f9f9f9;box-shadow:0 8px 16px 0 rgba(0,0,0,.2);z-index:1000;max-height:150px;overflow:auto}
+                    .global_editor_button_group .dropdown-content{display:none;position:absolute;background-color:#f9f9f9;box-shadow:0 8px 16px 0 rgba(0,0,0,.2);z-index:1000;max-height:150px;overflow:auto;box-shadow: 0 3px 6px #00000029 !important;-webkit-box-shadow: 0 3px 6px #00000029 !important;-moz-box-shadow: 0 3px 6px #00000029 !important;-ms-box-shadow: 0 3px 6px #00000029 !important;-o-box-shadow: 0 3px 6px #00000029 !important;border: 1px solid #d5d5d6;}
                     .global_editor_button_group .dropdown-button{display:inline-flex;align-items:center;padding:8px 12px;cursor:pointer;font-size:14px;width:auto}
                     .global_editor_button_group .dropdown-content div{padding:8px 16px;cursor:pointer}
                     .global_editor_button_group .dropdown-contents div:hover{background-color:#f1f1f1}
@@ -97,21 +103,22 @@ export const CSS = `
                             border: 0;
                             align-items: center;}
                     .global_editor_toolbar .global_editor_toolbar_button_pane:before{display:none}
-                    .global_editor_button_group.event_group_tool button svg{width:auto;height:auto}
                     .global_editor_toolbar_button_pane button:hover{background:#efefef}
                     .toolbar_selected_text{font-size:15px;font-weight:500;color:#1a1f22}
                     .global_editor_toolbar_button_pane .global_editor_button_group::after{margin:6px 5px!important;height:20px!important}
-                    .global_editor_button_group .dropdown-content .dropdown-item{display:flex;align-items:center;padding:2px 4px;min-height:30px;border-radius:4px;font-size:14px}
-                    .dropdown_ele_icon{display:inline-flex;width:24px;height:24px;border-radius:4px;align-items:center;justify-content:center;background:#e2e8ea;margin-right:6px;font-size:12px;padding:0!important}
-                    .global_editor_button_group .dropdown-content .dropdown-item:hover{background:#f4f7f7}
-                    .global_editor_button_group .dropdown-content{padding:4px;min-width:200px;border:1px solid #e2e8ea;border-radius:8px;background:#fff!important;max-height:300px!important}
+                    .global_editor_button_group .dropdown-content .dropdown-item{display:flex;align-items:center;padding:2px 8px;min-height:30px;border-radius:4px;font-size:13px}
+                    .dropdown_ele_icon{display: inline-flex;width: 24px;height: 24px;align-items: center;font-size: 12px;padding: 0 !important;}
+                    .global_editor_button_group .dropdown-content .dropdown-item:hover{background:#f5f5f5}
+                    .global_editor_button_group .dropdown-content{padding:5px;min-width:200px;border:1px solid #e2e8ea;border-radius:8px;background:#fff!important;max-height:300px!important}
                     .global_editor_edit_main_area{word-break:break-word}
                     .global_editor_toolbar_button_pane button svg.stroke_icon{fill:transparent}
                     .global_editor_toolbar_button_pane button{margin:0 5px}
-                    .dropdown-content.color_pallet_content{width:192px;max-width:192px;min-width:auto}
-                    .global_editor_button_group .dropdown-content.color_pallet_content .color_pallet{margin:0 3px;min-height:16px;border-radius:4px;height:16px;width:16px;border:1px solid #ebebeb}
+                    .dropdown-content.color_pallet_content{width:215px;max-width:215px;min-width:auto}
+                    .global_editor_button_group .color_pallet_content .color_pallet:last-child {margin-right: 0;}
+                    .global_editor_button_group .color_pallet_content .color_pallet:first-child {margin-left: 0;}
+                    .global_editor_button_group .dropdown-content.color_pallet_content .color_pallet{margin:0 3px;min-height:20px;border-radius:4px;height:20px;min-width:20px;width:20px;border:1px solid #ebebeb}
                     .dropdown-content.color_pallet_content.active{display:flex!important;padding:7px 6px;flex-wrap:wrap}
-                    .global_editor_button_group .dropdown-content.color_pallet_content .color_pallet::before{left:4px;font-size:10px}
+                    .global_editor_button_group .dropdown-content.color_pallet_content .color_pallet::before{left:4px;font-size:11px}
                     .global_editor_button_group .dropdown-item.font_dropdown.active{background:#fff;color:#000}
                     .global_editor_toolbar_button_pane button:hover+.ge_tooltip_wrapper{opacity:1}
                     .global_editor_toolbar .global_editor_toolbar_button_pane .global_editor_button.active{background:#0e9af11a!important}
@@ -1323,31 +1330,31 @@ z-index:999999;
     flex-shrink: 0;
   }
 .ge_selection_toolbar {
-      position: fixed;
-      z-index: 9999;
-      background: #ffffff;
-      border-radius: 8px;
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
-      padding: 2px;
-      display: inline-flex;
-      align-items: center;
-      gap: 2px;
-      font-size: 12px;
-      transform: translate3d(-9999px, -9999px, 0);
-      opacity: 0;
-      top:0px;
-      pointer-events: none;
-      transition: opacity 120ms ease-out, transform 120ms ease-out;
-      backdrop-filter: blur(10px);
-      white-space: nowrap;
+    position: fixed;
+    z-index: 9999;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0px 2px 6px #0000002E;
+    border: 0;
+    width: auto;
+    padding: 3px 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 12px;
+    transform: translate3d(-9999px, -9999px, 0);
+    opacity: 0;
+    top: 0px;
+    pointer-events: none;
+    transition: opacity 120ms ease-out, transform 120ms ease-out;
+    backdrop-filter: blur(10px);
+    white-space: nowrap;
     }
 
     .ge_selection_toolbar.is-visible {
       opacity: 1;
       pointer-events: auto;
-    }
-    .ge_selection_toolbar .global_editor_button_group.event_group_tool button svg {
-        width: 11px;
+      
     }
    
     .ge_selection_toolbar .global_editor_button .toolbar_selected_text{
@@ -1355,17 +1362,17 @@ z-index:999999;
     }
     .ge_selection_toolbar .global_editor_button_group .dropdown-content .dropdown-item{
       font-size: 12px;
+      color: #333333;
     }
     .ge_selection_toolbar .global_editor_button_group .dropdown-button .color_button_toolbar{
-        width: 20px !important;
-        height: 20px !important;
+        width: 18px !important;
+        height: 18px !important;
     }
     .ge_selection_toolbar .global_editor_toolbar_button_pane button{
-        gap: 5px;
-    }
-    .ge_selection_toolbar .global_editor_toolbar_button_pane button{
+        gap: 0px;
         margin: 0px;
     }
+  
     .global_editor_toolbar_button_pane button, .global_editor_toolbar_button_pane input[type=color], .global_editor_toolbar_button_pane select{
         width: 30px;
         height: 30px;
@@ -1382,7 +1389,260 @@ z-index:999999;
         transform: rotate(45deg);
     }
     .ge_selection_toolbar .global_editor_button_group.event_group_tool button svg.anchor_tag {
-     width: 8px;
+     width: 7px;
+     opacity: 0.5;
+  
     }
-
+.global_editor_edit_main_area {
+                    box-shadow: none;
+                    padding:15px 20px;
+                }
+              
+                .tiptap.ProseMirror {padding: 15px 15px 15px 15px;}
+                .tiptap-button {
+                height: auto;
+                min-width: auto;
+                border: none;
+                padding: 2px 0;
+                border-radius: 3px;
+                margin-top: 4px;
+                margin-left: -5px;
+                 }
+                 .global_editor_toolbar_button_pane{padding:0;min-height:30px;}
+              
+                .ge_selection_toolbar .global_editor_toolbar_button_pane button {gap: 0;}
+                .ge_selection_toolbar .global_editor_button .toolbar_selected_text {
+                    font-size: 14px;
+                    display: inline-flex;
+                    align-items: center;
+                    color: #000000;
+                }
+                .tool_bar_wrap {
+                   display: flex;
+                    align-items: center;
+                    margin-bottom: 0px;
+                    margin:0 1px;
+                }
+                .tiptap.ProseMirror p:not(:first-child), .tiptap.ProseMirror div:not(:first-child), .tiptap.ProseMirror ul:not(:first-child), .tiptap.ProseMirror ol:not(:first-child) {
+                margin-top: 2px;
+                }
+            .tiptap.ProseMirror p {
+              margin-bottom: 2px;
+              line-height:normal;
+            }
+            .ge_editor_loader {
+                 box-shadow: none;
+                 border: 0;
+                 color: #8a8a8a;
+                }
+                .global_editor_toolbar_button_pane .global_editor_button_group::after {
+                    content: " "; 
+                    background: #e7edee;
+                    margin: 0 3px;  
+                }
+                .tool_bar_wrap.active button {
+                   background: #e6f5fd;
+                }
+                .tool_bar_wrap.active svg * {
+                    stroke: #0e9aef;
+                }
+                .global_editor_toolbar_button_pane .tool_bar_wrap.active button:hover {
+                    background: #d6ecf7 !important;
+                }
+                .tool_bar_wrap.active button.dropdown-button > svg * {
+                    stroke: none;
+                }
+                .ge_link_bubble {
+                    border-radius: 6px;
+                    box-shadow: 0 0 1px 0 #0004, 0 1px 3px 0 rgba(0, 0, 0, .1), 0 1px 2px -1px rgba(0, 0, 0, .1);
+                    padding: 4px 6px 4px 8px;
+                    gap: 4px;
+                }
+                .ge_link_bubble .ge_link_apply {
+                    padding: 6px 8px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                background: #0e9aef;
+                }
+                .ge_link_bubble .ge_link_apply:hover {
+                    background: #1089d2;
+                }
+                .ge_link_bubble .ge_link_remove {
+                    border-radius: 4px;
+                    padding: 3px 6px;
+                    width: 22px;
+                    height: 22px;
+                }
+                .ge_link_bubble .ge_link_remove:hover {
+                    color: #000000;
+                    background: #f0f0f0;
+                }
+                .tiptap.ProseMirror p::selection,  .tiptap.ProseMirror p em::selection,  .tiptap.ProseMirror p strong::selection, .tiptap.ProseMirror h1::selection, .tiptap.ProseMirror h2::selection, .tiptap.ProseMirror h3::selection, .tiptap.ProseMirror h4::selection, u::selection, .tiptap.ProseMirror p span::selection, .tiptap.ProseMirror p *::selection {
+                    background-color:#3367d1 !important;
+                    color:#ffffff;
+                }
+                .tiptap.ProseMirror {   
+                     caret-color: #3367d1;
+                }
+               .tiptap-card {
+                    border-radius: 10px;
+                    border: 1px solid #ededed;
+                    max-width: 322px;
+                }
+                .tiptap-card-body {
+                    /*max-height: 130px;*/
+                    flex-wrap: wrap;
+                    display: flex;
+                    padding: 5px 8px 5px;
+                }
+                .tiptap-button {
+                    padding: 7px 8px;
+                    margin: 0;
+                    border-radius: 4px;
+                    color: #333333;
+                    cursor:pointer;
+                    font-family: 'Segoe UI', sans-serif;
+                    font-weight: 400;
+                    font-size: 13px;
+                }
+                .tiptap-button .tiptap-button-text {
+                    margin: 0;
+                    padding: 0;
+                    line-height: normal;
+                }
+                .tiptap-card-group-label {
+                    padding: 6px 0 6px 0px;
+                    display: inline-flex;
+                    font-weight: 500;
+                    font-size: 11px;
+                    color: #a5a5a5;
+                    text-transform: uppercase;
+                }
+                .tiptap-button-group {
+                    flex-direction: unset !important;
+                    max-width: unset;
+                }
+                .tiptap-button-group[data-orientation=vertical] {
+                    flex-direction: unset !important;
+                    max-width: unset;
+                    min-width: unset;
+                    justify-content: start;
+                    flex-wrap: wrap;
+                }
+                .tiptap-card-item-group {
+                    margin-bottom: 8px;
+                    max-width: 100%;
+                    width: 100%;
+                    min-width: unset;
+                }
+                .tiptap-card-body .tiptap-card-item-group:last-child {margin: 0;}
+                  .ProseMirror table td, .ProseMirror table th {border: 1px solid #ccc;}
+               .block_content_editable_wrapper h1:after, .block_content_editable_wrapper h2:after, .block_content_editable_wrapper h3:after {
+                    display: none;
+                }
+                .block_content_editable_wrapper h1, .block_content_editable_wrapper h2, .block_content_editable_wrapper h3 {
+                    border: 0 !important;
+                    color: #333333 !important;
+                    margin-top:0!important;
+                }
+                .tiptap.ProseMirror ul[data-type=taskList] li label {
+                    padding-top: 8px;
+                }
+                .tiptap.ProseMirror ul[data-type=taskList] li {
+                    align-items: flex-start;
+                }
+                .tiptap.ProseMirror pre {
+                    padding: 3px 6px;
+                    margin-top: 0;
+                }
+                .tiptap.ProseMirror .ProseMirror-selectednode .tiptap-image .tiptap-image-container {
+                    outline: 2px solid #0e9aef;
+                    outline-color: #0e9aef;
+                    border-radius:6px;
+                    }
+                .tiptap-button[data-active-state=on]:not([disabled]) .tiptap-button-icon, .tiptap-button[data-state=open]:not([disabled]) .tiptap-button-icon {
+                    color: #0e9aef;
+                }
+                .tiptap-button[data-active-state=on]:not([disabled]), .tiptap-button[data-state=open]:not([disabled]) {
+                    background-color: #0e9aef14;                  
+                }
+                .tiptap.ProseMirror .tiptap-image-handle {
+                    background-color: #0e9aef;
+                }
+                .tiptap-toolbar {
+                    border-radius: 8px!important;
+                        padding: 2px !important;
+                        box-shadow: 0 0 1px 0 #0004, 0 1px 3px 0 rgba(0, 0, 0, .1), 0 1px 2px -1px rgba(0, 0, 0, .1)!important;
+                        border: 0!important;
+                }
+                .tiptap-toolbar-group .tiptap-button {
+                    padding: 0;
+                    width: 28px;
+                    height: 29px;
+                    border-radius: 6px;
+                }
+                .tiptap.ProseMirror .tiptap-image {margin-top:0!important;}
+                .tiptap.ProseMirror blockquote {
+                    margin-top: 0;
+                    padding: 0 0 0 14px;
+                }
+                 .tiptap.ProseMirror.ProseMirror-focused blockquote:before, .tiptap.ProseMirror blockquote:before { content: "";   position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    top: 0;
+                    height: 100%;width: 4px;background-color: rgb(230 230 230)!important;
+                    }
+                    .tiptap.ProseMirror pre code { 
+                        white-space: normal;
+                    }
+                    .ge_editor_loader {
+                        transform: none;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: #ffffff;
+                      
+                    }
+                    .ql-blot-format-toolbar__item.ql-blot-format-toolbar__button {
+                        min-width: 28px;
+                        padding: 0 5px;
+                    }
+                    .ql-blot-format-toolbar {
+                    border-radius: 10px;
+                    box-shadow: 0 0 1px 0 #0004, 0 1px 3px 0 rgba(0, 0, 0, .1), 0 1px 2px -1px rgba(0, 0, 0, .1);
+                    padding: 3px 5px;
+                    min-height: 36px;
+                    border: 0;
+                    display: inline-flex !important;
+                    align-items: center;
+                    gap: 0;
+                }
+                .ql-blot-format-toolbar__button_color-picker{ border-radius: 10px;
+                    box-shadow: 0 0 1px 0 #0004, 0 1px 3px 0 rgba(0, 0, 0, .1), 0 1px 2px -1px rgba(0, 0, 0, .1); min-height: 36px;
+                    border: 0;}
+                .ql-blot-format-toolbar__button_inner span {
+                    display: inline-flex;
+                }
+                .ql-blot-format-toolbar__button_inner svg {fill: #282828;}
+                .ql-blot-format-toolbar__button_dropdown-menu {
+                    min-width: 120px;
+                }
+                
+                .ql-blot-format-toolbar__button_dropdown-menu_item {
+                    border-radius: 6px!important;
+                    color: #282828;
+                    padding: 8px 8px;
+                    font-size: 12px;
+                    background:#ffffff;
+                }
+                .ql-blot-format-toolbar__button:hover {
+                        background: #efefef !important;
+                    }
+                    .tiptap-button-text {
+                        color: #333333;
+                    }
 `

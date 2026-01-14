@@ -1272,13 +1272,27 @@ button.ql-blot-format-toolbar__button_dropdown-menu_item.is-disabled {
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
-    min-width: max-content
+   
 }
 
 .tiptap-button-group[data-orientation=vertical]>.tiptap-button {
     width: 100%
 }
 
+.tiptap-slash-card-body .tiptap-button {
+    border-radius: 6px;
+}
+.tiptap-slash-card-body .tiptap-button[data-active-state=on]:not([disabled]) {
+        background-color: #0e9aef14;
+}
+.tiptap-card-group-label {
+    padding: 6px 0 6px 0px;
+    display: inline-flex;
+    font-weight: 500;
+    font-size: 11px;
+    color: #a5a5a5;
+    text-transform: uppercase;
+}
 .tiptap-button-group[data-orientation=horizontal] {
     gap: .125rem;
     flex-direction: row;
@@ -1637,7 +1651,7 @@ span.suggestion.is-empty:after {
     position: relative;
     display: flex;
     vertical-align: middle;
-    min-width: max-content
+   
 }
 
 .tiptap-card-item-group[data-orientation=vertical] {
@@ -1651,14 +1665,14 @@ span.suggestion.is-empty:after {
     align-items: center
 }
 
-.tiptap-card-group-label {
-    padding: .75rem .5rem .25rem;
-    font-size: .75rem;
-    font-weight: 600;
-    line-height: normal;
-    text-transform: capitalize;
-    color: var(--tiptap-card-group-label-color)
-}
+// .tiptap-card-group-label {
+//     padding: .75rem .5rem .25rem;
+//     font-size: .75rem;
+//     font-weight: 600;
+//     line-height: normal;
+//     text-transform: capitalize;
+//     color: var(--tiptap-card-group-label-color)
+// }
 
 ::-webkit-scrollbar {
     width: .25rem
@@ -1738,13 +1752,20 @@ span.suggestion.is-empty:after {
 }
 .ProseMirror table td,
 .ProseMirror table th {
-  border: 2px solid #ced4da;
+  border: 1px solid #ccc;
   box-sizing: border-box;
   vertical-align: baseline!important;
   min-width: 8em;
   min-height: 5em;
   padding: 3px 5px;
   position: relative;
+}
+.global_editor_toolbar_button_pane .global_editor_button_group.has-no-divider::after{display:none;}
+.dropdown-content.color_pallet_content .color_pallet.dropdown-item:first-child {
+    margin-left: 0!important;
+}
+.dropdown-content.color_pallet_content .color_pallet.dropdown-item:last-child {
+    margin-right: 0!important;
 }
 .ProseMirror table td > *,
 .ProseMirror table th > * {
@@ -2053,4 +2074,5 @@ span.suggestion.is-empty:after {
   outline-offset: -2px;
   background: rgba(99,163,255,.12);
 }
+.ql-table-cell--single-selected {background:red;}
 `;

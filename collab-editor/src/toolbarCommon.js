@@ -17,32 +17,45 @@ const ALIGN_ICONS = {
 // List SVGs shown on the List button & dropdown
 export const LIST_ICONS = {
     bullet: `
-    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 16 16">
-      <g fill="none" stroke="#1a1f22" stroke-width="1.4" stroke-linecap="round">
-        <circle cx="2.5" cy="3" r="0.9"></circle>
-        <circle cx="2.5" cy="8" r="0.9"></circle>
-        <circle cx="2.5" cy="13" r="0.9"></circle>
-        <line x1="5" y1="3" x2="14" y2="3"></line>
-        <line x1="5" y1="8" x2="14" y2="8"></line>
-        <line x1="5" y1="13" x2="14" y2="13"></line>
-      </g>
-    </svg>
+   
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 15.75 14.375">
+  <g id="Group_17487" data-name="Group 17487" transform="translate(20313.385 12758.126)">
+    <line id="Path" x2="9" transform="translate(-20307.385 -12757)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"/>
+    <line id="Path-2" data-name="Path" x2="9" transform="translate(-20307.385 -12745)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"/>
+    <line id="Path-3" data-name="Path" x2="9" transform="translate(-20307.385 -12751)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"/>
+    <g id="Rectangle_6884" data-name="Rectangle 6884" transform="translate(-20313.385 -12752.251)" fill="#0c0310" stroke="#0c0310" stroke-width="1">
+      <rect width="2.5" height="2.5" rx="1.25" stroke="none"/>
+      <rect x="0.5" y="0.5" width="1.5" height="1.5" rx="0.75" fill="none"/>
+    </g>
+    <g id="Rectangle_6886" data-name="Rectangle 6886" transform="translate(-20313.385 -12758.126)" fill="#0c0310" stroke="#0c0310" stroke-width="1">
+      <rect width="2.5" height="2.5" rx="1.25" stroke="none"/>
+      <rect x="0.5" y="0.5" width="1.5" height="1.5" rx="0.75" fill="none"/>
+    </g>
+    <g id="Rectangle_6885" data-name="Rectangle 6885" transform="translate(-20313.385 -12746.251)" fill="#0c0310" stroke="#0c0310" stroke-width="1">
+      <rect width="2.5" height="2.5" rx="1.25" stroke="none"/>
+      <rect x="0.5" y="0.5" width="1.5" height="1.5" rx="0.75" fill="none"/>
+    </g>
+  </g>
+</svg>
+
   `,
     ordered: `
-    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 16 16">
-      <g fill="none" stroke="#1a1f22" stroke-width="1.4" stroke-linecap="round">
-        <path d="M2.2 2.5h1.1V1H1.5"></path>
-        <path d="M1.5 7h1.2l-1.2 1.2V9h2.1"></path>
-        <path d="M1.5 11.5h2.1L1.5 14h2.1"></path>
-        <line x1="5.5" y1="3"  x2="14" y2="3"></line>
-        <line x1="5.5" y1="8"  x2="14" y2="8"></line>
-        <line x1="5.5" y1="13" x2="14" y2="13"></line>
-      </g>
-    </svg>
+   
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 15.518 14.912">
+  <g id="Group_17486" data-name="Group 17486" transform="translate(20312.768 12758.332)">
+    <line id="Path" x2="9" transform="translate(-20307 -12757)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"/>
+    <line id="Path-2" data-name="Path" x2="9" transform="translate(-20307 -12745)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"/>
+    <line id="Path-3" data-name="Path" x2="9" transform="translate(-20307 -12751)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"/>
+    <path id="Path-4" data-name="Path" d="M5.252,5.676,4.776,6l-.448-.7,1-.64h.88V7.5h-.96Z" transform="translate(-20317 -12763)" fill="#0c0310"/>
+    <path id="Path-5" data-name="Path" d="M5.484,11.864a.511.511,0,0,0,.112-.116.23.23,0,0,0,.044-.132.207.207,0,0,0-.052-.14.188.188,0,0,0-.156-.06.239.239,0,0,0-.192.092.412.412,0,0,0-.084.248l-.908-.1a1.175,1.175,0,0,1,.144-.476,1.123,1.123,0,0,1,.288-.332,1.174,1.174,0,0,1,.388-.192,1.553,1.553,0,0,1,.444-.064,1.66,1.66,0,0,1,.412.052,1.1,1.1,0,0,1,.368.164.834.834,0,0,1,.26.284.845.845,0,0,1,.1.424.935.935,0,0,1-.048.312.8.8,0,0,1-.124.236,1.068,1.068,0,0,1-.176.188,2.462,2.462,0,0,1-.2.16l-.416.3H6.66v.8h-2.3v-.74Z" transform="translate(-20317 -12763)" fill="#292d32"/>
+    <path id="Path-6" data-name="Path" d="M6.232,18.016a.715.715,0,0,1,.2.1.689.689,0,0,1,.156.148.606.606,0,0,1,.1.184.554.554,0,0,1,.036.2.841.841,0,0,1-.1.428.919.919,0,0,1-.272.292,1.19,1.19,0,0,1-.38.164,1.787,1.787,0,0,1-.856,0,1.278,1.278,0,0,1-.384-.156,1.225,1.225,0,0,1-.3-.272,1.025,1.025,0,0,1-.184-.392L5.12,18.5a.386.386,0,0,0,.116.192.347.347,0,0,0,.244.088.473.473,0,0,0,.084-.008.36.36,0,0,0,.08-.032.214.214,0,0,0,.06-.06.184.184,0,0,0-.088-.26.915.915,0,0,0-.3-.04H5.044v-.656h.3a.62.62,0,0,0,.244-.04.165.165,0,0,0,.092-.164.131.131,0,0,0-.072-.128.335.335,0,0,0-.152-.036.3.3,0,0,0-.184.064.263.263,0,0,0-.1.18l-.884-.188a1.1,1.1,0,0,1,.5-.644,1.278,1.278,0,0,1,.364-.136,1.752,1.752,0,0,1,.384-.044,1.66,1.66,0,0,1,.388.048,1.125,1.125,0,0,1,.364.148.832.832,0,0,1,.268.26.67.67,0,0,1,.1.38.557.557,0,0,1-.128.384.633.633,0,0,1-.3.192Z" transform="translate(-20317 -12763)" fill="#292d32"/>
+  </g>
+</svg>
+
   `,
     task: `
     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 16 16">
-      <g fill="none" stroke="#1a1f22" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <g fill="none" stroke="#0c0310" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
         <rect x="1.5" y="1.5" width="3" height="3" rx="0.6"></rect>
         <rect x="1.5" y="6.5" width="3" height="3" rx="0.6"></rect>
         <rect x="1.5" y="11.5" width="3" height="3" rx="0.6"></rect>
@@ -59,97 +72,72 @@ export const LIST_ICONS = {
 export function buildToolbarButtonsHtml(tools = []) {
     let html = '';
 
-    if (tools.includes('text') || !tools?.length) {
-        html += `
-          <!-- Text -->
-          <div class="global_editor_button_group event_group_tool">
-            <div class="tool_bar_wrap">
-              <button type="button" class="global_editor_button" tabindex="-1" id="boldButton">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 11.382 15.5"><path d="M6,10.588h5.765a3.294,3.294,0,0,0,3.294-3.294h0A3.294,3.294,0,0,0,11.765,4H7.647A1.647,1.647,0,0,0,6,5.647Zm0,0v5.765A1.647,1.647,0,0,0,7.647,18h4.529a3.706,3.706,0,0,0,3.706-3.706h0a3.706,3.706,0,0,0-3.706-3.706Z" transform="translate(-5.25 -3.25)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5" fill-rule="evenodd"></path></svg>
-              </button>
-              <div class="ge_tooltip_wrapper"><span class="hover_ele_type">Strong</span><span class="shortcut">Ctrl+B</span></div>
-            </div>
-            <div class="tool_bar_wrap">
-              <button type="button" class="global_editor_button" tabindex="-1" id="italicButton">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="4" x2="10" y2="4"></line><line x1="14" y1="20" x2="5" y2="20"></line><line x1="15" y1="4" x2="9" y2="20"></line></svg>
-              </button>
-              <div class="ge_tooltip_wrapper"><span class="hover_ele_type">Emphasis</span><span class="shortcut">Ctrl+I</span></div>
-            </div>
-            <div class="tool_bar_wrap">
-              <button type="button" class="global_editor_button" tabindex="-1" id="underlineButton">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 14.5 15.5"><g transform="translate(20404.113 12759.75)"><path d="M6,4V9.587a4.789,4.789,0,0,0,4.789,4.789h0a4.789,4.789,0,0,0,4.789-4.789V4" transform="translate(-20407.416 -12763)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5" fill-rule="evenodd"></path><line x2="13" transform="translate(-20403.363 -12745)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"></line></g></svg>
-              </button>
-              <div class="ge_tooltip_wrapper"><span class="hover_ele_type">Underline</span><span class="shortcut">Ctrl+U</span></div>
-            </div>
-            <div class="tool_bar_wrap">
-              <button type="button" class="global_editor_button" tabindex="-1" id="strikeButton">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 16.5 16.501"><g transform="translate(-3.25 -3.25)"><g transform="translate(4 4)"><path d="M11.5,11.5a5.608,5.608,0,0,1,2.386.522,4.725,4.725,0,0,1,.9.55,3.97,3.97,0,0,1,.826.871,3.164,3.164,0,0,1,.577,1.924,3.245,3.245,0,0,1-.727,1.892,4.475,4.475,0,0,1-1.83,1.332,5.7,5.7,0,0,1-2.422.4,5.5,5.5,0,0,1-2.34-.641,4.127,4.127,0,0,1-1.607-1.5M11.5,11.5H4m7.5,0H19M15.742,6.154a4.126,4.126,0,0,0-1.607-1.5,5.5,5.5,0,0,0-2.34-.641,5.7,5.7,0,0,0-2.423.4,4.476,4.476,0,0,0-1.83,1.332,3.245,3.245,0,0,0-.727,1.892,3,3,0,0,0,.035.586" transform="translate(-4 -4)" fill="none" stroke="#0c0311" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></g></g></svg>
-              </button>
-              <div class="ge_tooltip_wrapper"><span class="hover_ele_type">Strikethrough</span></div>
-            </div>
-          </div>
-          <!-- Text -->
-        `;
-    }
-
     if (tools.includes('text_format') || !tools?.length) {
         html += `
           <!-- Text Format -->
-          <div class="global_editor_button_group event_group_tool">
+          <div class="global_editor_button_group event_group_tool has-no-divider">
             <div class="tool_bar_wrap">
               <button type="button" id="textFormatSelectButton" class="global_editor_button dropdown-button" tabindex="-1">
-                <span id="textFormatSelectButtonText" class="toolbar_selected_text font_family_text">T</span>
+                <span id="textFormatSelectButtonText" class="toolbar_selected_text font_family_text">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10.719" height="13.353" viewBox="0 0 10.719 13.353">
+                      <path id="Font_Style" data-name="Font Style" d="M9.609,3V14.852m-1.387,0H11M14.219,3H5" transform="translate(-4.25 -2.25)" fill="#0b0e10" stroke="#0b0e10" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                    </svg>
+                </span>
                 <svg xmlns="http://www.w3.org/2000/svg" class="anchor_tag" width="6" height="3.795" viewBox="0 0 6 3.795"><path d="M7.205,14h5.6a.208.208,0,0,1,.142.348L10.209,17.7a.253.253,0,0,1-.4,0L7.047,14.348A.213.213,0,0,1,7.205,14Z" transform="translate(-7 -14)" fill="#1a1f22"></path></svg>
               </button>
               <div class="ge_tooltip_wrapper"><span class="hover_ele_type">Text Format</span></div>
             </div>
             <div id="textFormatSelectDropdown" class="dropdown-content">
-              <div data-format="div" data-name="T" class="dropdown-item font_dropdown active">Text</div>
-              <div data-format="h1" data-name="H1" class="dropdown-item font_dropdown">H1</div>
-              <div data-format="h2" data-name="H2" class="dropdown-item font_dropdown">H2</div>
-              <div data-format="h3" data-name="H3" class="dropdown-item font_dropdown">H3</div>
-              <div data-format="h4" data-name="H4" class="dropdown-item font_dropdown">H4</div>
+              <div data-format="div" data-name="T" class="dropdown-item font_dropdown active">
+               <div class="dropdown_ele_icon">             
+                <svg xmlns="http://www.w3.org/2000/svg" width="9" viewBox="0 0 10.719 13.353">
+                  <path id="Font_Style" data-name="Font Style" d="M9.609,3V14.852m-1.387,0H11M14.219,3H5" transform="translate(-4.25 -2.25)" fill="#0b0e10" stroke="#0b0e10" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                </svg>
+               </div>
+              Text
+              </div>
+              <div data-format="h1" data-name="H1" class="dropdown-item font_dropdown">
+              <div class="dropdown_ele_icon">          
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="13" viewBox="0 0 18 16">
+                  <path id="Path_19316" data-name="Path 19316" d="M424,920l3-1v10m-16-14v7m0,0v7m0-7h8m0-7v7m0,0v7" transform="translate(-410 -914)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                </svg>
+                </div>
+                Heading 1
+              </div>
+              <div data-format="h2" data-name="H2" class="dropdown-item font_dropdown">
+              <div class="dropdown_ele_icon">         
+               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 20 16">
+                  <path id="Path_19317" data-name="Path 19317" d="M735,922.5V922a3,3,0,0,1,3-3h.172a2.829,2.829,0,0,1,2,4.829L735,929h6m-18-14v7m0,0v7m0-7h8m0-7v7m0,0v7" transform="translate(-722 -914)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                </svg>
+              </div>
+              Heading 2
+              </div>
+              <div data-format="h3" data-name="H3" class="dropdown-item font_dropdown">
+               <div class="dropdown_ele_icon">               
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 20 16">
+                  <path id="Path_19326" data-name="Path 19326" d="M111,975h6l-4,4h1a3,3,0,1,1-2.829,4M99,971v7m0,0v7m0-7h8m0-7v7m0,0v7" transform="translate(-98 -970)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                </svg>
+              </div>
+              Heading 3
+              </div>
+              <div data-format="h4" data-name="H4" class="dropdown-item font_dropdown">
+              <div class="dropdown_ele_icon">                 
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 20 16">
+                  <path id="Path_19325" data-name="Path 19325" d="M426,975l-2.5,8H428m0,0h1m-1,0v-3m0,3v2m-17-14v7m0,0v7m0-7h8m0-7v7m0,0v7" transform="translate(-410 -970)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                </svg>
+              </div>
+              Heading 4
+              </div>
             </div>
           </div>
           <!-- Text Format -->
-        `;
-    }
-
-    if (tools.includes('list') || !tools?.length) {
-        html += `
-          <!-- List Formatting -->
-          <div class="global_editor_button_group event_group_tool">
-            <div class="tool_bar_wrap">
-              <button type="button" id="listButton" class="global_editor_button dropdown-button" tabindex="-1">
-                <span class="toolbar_selected_text">
-                  ${LIST_ICONS.bullet}
-                </span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="6" class="anchor_tag" height="3.795" viewBox="0 0 6 3.795">
-                  <path d="M7.205,14h5.6a.208.208,0,0,1,.142.348L10.209,17.7a.253.253,0,0,1-.4,0L7.047,14.348A.213.213,0,0,1,7.205,14Z" transform="translate(-7 -14)" fill="#1a1f22"></path>
-                </svg>
-              </button>
-              <div class="ge_tooltip_wrapper"><span class="hover_ele_type">List</span></div>
-            </div>
-            <div id="listDropdown" class="dropdown-content">
-              <div class="dropdown-item font_dropdown" id="bulletListButton">
-                <div class="dropdown_ele_icon">${LIST_ICONS.bullet}</div><span>Bulleted list</span>
-              </div>
-              <div class="dropdown-item font_dropdown" id="orderedListButton">
-                <div class="dropdown_ele_icon">${LIST_ICONS.ordered}</div><span>Numbered list</span>
-              </div>
-              <div class="dropdown-item font_dropdown" id="taskListButton">
-                <div class="dropdown_ele_icon">${LIST_ICONS.task}</div><span>Checklist</span>
-              </div>
-            </div>
-          </div>
-          <!-- List Formatting -->
         `;
     }
 
     if (tools.includes('font') || !tools?.length) {
         html += `
           <!-- Font Family -->
-          <div class="global_editor_button_group event_group_tool">
+          <div class="global_editor_button_group event_group_tool has-no-divider">
             <div class="tool_bar_wrap">
               <button type="button" id="fontFamilyButton" class="global_editor_button dropdown-button" tabindex="-1">
                 <span id="fontFamilyButtonText" class="toolbar_selected_text font_family_text">Calibri</span>
@@ -177,7 +165,7 @@ export function buildToolbarButtonsHtml(tools = []) {
               </button>
               <div class="ge_tooltip_wrapper"><span class="hover_ele_type">Font Size</span></div>
             </div>
-            <div id="fontSizeDropdown" class="dropdown-content auto_width">
+            <div id="fontSizeDropdown" class="dropdown-content auto_width font-size_dropdown">
               <div data-size="1" class="dropdown-item font_dropdown">1</div>
               <div data-size="2" class="dropdown-item font_dropdown">2</div>
               <div data-size="3" class="dropdown-item font_dropdown active">3</div>
@@ -189,15 +177,72 @@ export function buildToolbarButtonsHtml(tools = []) {
           </div>
           <!-- Font Size -->
     
-          <!-- Text Color -->
+        `;
+    }
+
+    if (tools.includes('text') || !tools?.length) {
+        html += `
+          <!-- Text -->
           <div class="global_editor_button_group event_group_tool">
+            <div class="tool_bar_wrap">
+              <button type="button" class="global_editor_button" tabindex="-1" id="boldButton">
+            <svg xmlns="http://www.w3.org/2000/svg" width="91" height="13" viewBox="0 0 9.971 13.5">
+              <path id="Bold" d="M6,9.647h4.941a2.824,2.824,0,0,0,2.824-2.824h0A2.824,2.824,0,0,0,10.941,4H7.412A1.412,1.412,0,0,0,6,5.412Zm0,0v4.941A1.412,1.412,0,0,0,7.412,16h3.882a3.176,3.176,0,0,0,3.176-3.176h0a3.176,3.176,0,0,0-3.176-3.176Z" transform="translate(-5.25 -3.25)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5" fill-rule="evenodd"></path>
+            </svg>
+              </button>
+              <div class="ge_tooltip_wrapper"><span class="hover_ele_type">Strong</span><span class="shortcut">Ctrl+B</span></div>
+            </div>
+            <div class="tool_bar_wrap">
+              <button type="button" class="global_editor_button" tabindex="-1" id="italicButton">
+                <svg xmlns="http://www.w3.org/2000/svg" width="9" height="13" viewBox="0 0 9.215 13.786">
+                  <g id="Italic" transform="translate(20370.75 12759.893)">
+                    <line id="Path" y1="12" x2="2.625" transform="translate(-20367.555 -12759)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"></line>
+                    <line id="Path-2" data-name="Path" x2="7" transform="translate(-20369.285 -12759)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"></line>
+                    <line id="Path-3" data-name="Path" x2="7" transform="translate(-20370 -12747)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"></line>
+                  </g>
+                </svg>
+              </button>
+              <div class="ge_tooltip_wrapper"><span class="hover_ele_type">Emphasis</span><span class="shortcut">Ctrl+I</span></div>
+            </div>
+            <div class="tool_bar_wrap">
+              <button type="button" class="global_editor_button" tabindex="-1" id="underlineButton">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 13.5 14.5">
+                      <g id="Underline" transform="translate(20404.113 12759.75)">
+                        <path id="Path" d="M6,4V9.027a4.309,4.309,0,0,0,4.309,4.309h0a4.309,4.309,0,0,0,4.309-4.309V4" transform="translate(-20407.611 -12763)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5" fill-rule="evenodd"></path>
+                        <line id="Path-2" data-name="Path" x2="12" transform="translate(-20403.363 -12746)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"></line>
+                      </g>
+                    </svg>
+              </button>
+              <div class="ge_tooltip_wrapper"><span class="hover_ele_type">Underline</span><span class="shortcut">Ctrl+U</span></div>
+            </div>
+            <div class="tool_bar_wrap">
+              <button type="button" class="global_editor_button" tabindex="-1" id="strikeButton">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14.051 14.052">
+                      <g id="SVGRepo_iconCarrier" transform="translate(-3.25 -3.25)">
+                        <g id="Edit_Strikethrough" data-name="Edit / Strikethrough" transform="translate(4 4)">
+                          <path id="Vector" d="M10.276,10.275a4.692,4.692,0,0,1,2,.437,3.953,3.953,0,0,1,.749.46,3.321,3.321,0,0,1,.691.729,2.647,2.647,0,0,1,.483,1.61,2.715,2.715,0,0,1-.609,1.583,3.745,3.745,0,0,1-1.531,1.114,4.765,4.765,0,0,1-2.027.336,4.6,4.6,0,0,1-1.958-.537,3.453,3.453,0,0,1-1.344-1.259m3.549-4.474H4m6.276,0h6.275M13.824,5.8A3.453,3.453,0,0,0,12.48,4.543a4.6,4.6,0,0,0-1.958-.537,4.765,4.765,0,0,0-2.027.336A3.745,3.745,0,0,0,6.964,5.457,2.715,2.715,0,0,0,6.355,7.04a2.514,2.514,0,0,0,.029.49" transform="translate(-4 -4)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+                        </g>
+                      </g>
+                    </svg>
+              </button>
+              <div class="ge_tooltip_wrapper"><span class="hover_ele_type">Strikethrough</span></div>
+            </div>
+          </div>
+          <!-- Text -->
+        `;
+    }
+
+    if (tools.includes('font') || !tools?.length) {
+        html += `
+          <!-- Text Color -->
+          <div class="global_editor_button_group event_group_tool has-no-divider">
             <button type="button" id="colorButton" class="global_editor_button dropdown-button" title="Text Color" tabindex="-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 11.529 14">
-                <g transform="translate(5229.765 2136.001)">
-                  <path d="M11.176,4h-.824a.825.825,0,0,0-.758.5L5.614,13.882H7.4l1.048-2.471h4.615l1.044,2.471H15.9L11.935,4.5A.824.824,0,0,0,11.176,4ZM9.151,9.765l1.613-3.8,1.607,3.8Z" transform="translate(-5234.765 -2140.001)"></path>
-                  <path id="colorButtonText" d="M5,15.529H16.529V18H5Z" transform="translate(-5234.765 -2140.001)" style="fill: rgb(0, 0, 0)"></path>
-                </g>
-              </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="11.529" height="13.991" viewBox="0 0 11.529 13.991">
+                  <g id="Font_Color" data-name="Font Color" transform="translate(5229.765 2135.992)">
+                    <path id="Path_16098" data-name="Path 16098" d="M5,15.529H16.529V18H5Z" transform="translate(-5234.765 -2140.001)" fill="#f2117a"/>
+                    <path id="colorButtonText" data-name="Path 19352" d="M417.971,1036.365,414.486,1028,411,1036.365m5.577-2.788h-4.183" transform="translate(-5638.485 -3163.242)" fill="none" stroke="rgb(0, 0, 0)" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                  </g>
+                </svg>
               <svg xmlns="http://www.w3.org/2000/svg" width="6" class="anchor_tag" height="3.795" viewBox="0 0 6 3.795"><path d="M7.205,14h5.6a.208.208,0,0,1,.142.348L10.209,17.7a.253.253,0,0,1-.4,0L7.047,14.348A.213.213,0,0,1,7.205,14Z" transform="translate(-7 -14)" fill="#1a1f22"></path></svg>
               <div class="ge_tooltip_wrapper"><span class="hover_ele_type">Text Color</span></div>
             </button>
@@ -245,13 +290,13 @@ export function buildToolbarButtonsHtml(tools = []) {
     if (tools.includes('align') || !tools?.length) {
         html += `
           <!-- Paragraph Formatting (alignment) -->
-          <div class="global_editor_button_group event_group_tool">
+          <div class="global_editor_button_group event_group_tool has-no-divider">
             <div class="tool_bar_wrap">
               <button type="button" id="paraFormattingButton" class="global_editor_button dropdown-button" tabindex="-1">
                 <span class="toolbar_selected_text">
                   <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 15.5 13.5"><g transform="translate(20282.75 12757.75)"><line x2="14" transform="translate(-20282 -12757)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"></line><line x2="14" transform="translate(-20282 -12749)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"></line><line x2="8" transform="translate(-20282 -12753)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"></line><line x2="8" transform="translate(-20282 -12745)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"></line></g></svg>
                 </span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="6" class="anchor_tag" height="3.795" viewBox="0 0 6 3.795"><path d="M7.205,14h5.6a.208.208,0,0,1,.142.348L10.209,17.7a.253.253,0,0,1-.4,0L7.047,14.348A.213.213,0,0,1,7.205,14Z" transform="translate(-7 -14)" fill="#1a1f22"></path></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="6" class="anchor_tag" height="3.795" viewBox="0 0 6 3.795"><path d="M7.205,14h5.6a.208.208,0,0,1,.142.348L10.209,17.7a.253.253,0,0,1-.4,0L7.047,14.348A.213.213,0,0,1,7.205,14Z" transform="translate(-7 -14)" fill="#0c0310"></path></svg>
               </button>
               <div class="ge_tooltip_wrapper"><span class="hover_ele_type">Paragraph Formatting</span></div>
             </div>
@@ -266,14 +311,50 @@ export function buildToolbarButtonsHtml(tools = []) {
         `;
     }
 
+    if (tools.includes('list') || !tools?.length) {
+        html += `
+          <!-- List Formatting -->
+          <div class="global_editor_button_group event_group_tool">
+            <div class="tool_bar_wrap">
+              <button type="button" id="listButton" class="global_editor_button dropdown-button" tabindex="-1">
+                <span class="toolbar_selected_text">
+                  ${LIST_ICONS.bullet}
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="6" class="anchor_tag" height="3.795" viewBox="0 0 6 3.795">
+                  <path d="M7.205,14h5.6a.208.208,0,0,1,.142.348L10.209,17.7a.253.253,0,0,1-.4,0L7.047,14.348A.213.213,0,0,1,7.205,14Z" transform="translate(-7 -14)" fill="#1a1f22"></path>
+                </svg>
+              </button>
+              <div class="ge_tooltip_wrapper"><span class="hover_ele_type">List</span></div>
+            </div>
+            <div id="listDropdown" class="dropdown-content">
+              <div class="dropdown-item font_dropdown" id="bulletListButton">
+                <div class="dropdown_ele_icon">${LIST_ICONS.bullet}</div><span>Bulleted list</span>
+              </div>
+              <div class="dropdown-item font_dropdown" id="orderedListButton">
+                <div class="dropdown_ele_icon">${LIST_ICONS.ordered}</div><span>Numbered list</span>
+              </div>
+              <div class="dropdown-item font_dropdown" id="taskListButton">
+                <div class="dropdown_ele_icon">${LIST_ICONS.task}</div><span>Checklist</span>
+              </div>
+            </div>
+          </div>
+          <!-- List Formatting -->
+        `;
+    }
+
+
     // Link
     if (tools.includes('link') || !tools?.length) {
         html += `
           <!-- Link -->
-          <div class="global_editor_button_group event_group_tool">
+          <div class="global_editor_button_group event_group_tool has-no-divider">
             <div class="tool_bar_wrap">
-              <button type="button" class="global_editor_button" tabindex="-1" id="linkButton">
-                  <svg xmlns="http://www.w3.org/2000/svg" id="Capa_1" width="12px" height="12px" viewBox="0 0 486.465 486.465"><g><g><path d="M453.323,39.655l-16.564-14.656C418.729,9.021,395.521,0.22,371.405,0.22c-28.223,0-55.118,12.079-73.791,33.143    L250.207,86.86c-6.105,6.876-9.164,15.722-8.608,24.901c0.557,9.166,4.642,17.576,11.518,23.673l4.438,3.94    c6.299,5.594,14.416,8.673,22.842,8.673l2.054-0.059c9.166-0.551,17.582-4.637,23.699-11.523l47.418-53.503    c8.342-9.416,24.169-10.362,33.601-2.026l16.558,14.688c4.748,4.203,7.57,10.021,7.955,16.384    c0.386,6.358-1.722,12.465-5.937,17.208L302.042,246.198c-6.982,7.887-19.377,10.164-28.734,5.342    c-14.577-7.519-33.58-3.93-44.392,8.256l-0.813,0.926c-7.573,8.518-10.727,19.838-8.674,31.104    c2.074,11.198,9.047,20.801,19.153,26.09c13.986,7.311,29.763,11.33,45.621,11.33h0.012c28.21,0,55.117-12.238,73.8-33.308    l103.691-117.046C497.746,138.226,494.004,75.731,453.323,39.655z"/><path d="M228.873,347.458c-13.669-12.103-36.426-10.743-48.574,2.938l-47.396,53.487c-8.342,9.412-24.159,10.387-33.58,2.043    l-16.576-14.705c-4.747-4.207-7.57-10.025-7.955-16.383c-0.387-6.348,1.722-12.453,5.935-17.196l103.692-116.974    c6.876-7.765,19.047-10.111,28.297-5.566c15.121,7.448,34.359,3.818,46.05-9.416c7.433-8.374,10.555-19.496,8.586-30.463    c-1.956-11.031-8.747-20.389-18.618-25.666c-14.201-7.604-30.274-11.624-46.466-11.624c-28.223,0-55.118,12.084-73.791,33.151    L24.772,308.038c-36.062,40.666-32.308,103.082,8.361,139.143l16.564,14.482c18.021,15.979,41.229,24.582,65.345,24.582    c0.011,0,0,0,0.011,0c28.223,0,55.129-11.889,73.812-32.957l47.388-53.379c6.116-6.887,9.176-15.691,8.618-24.819    c-0.533-9.068-4.736-17.694-11.538-23.706L228.873,347.458z"/></g></g></svg>
+              <button type="button" class="global_editor_button" tabindex="-1" id="linkButton">                  
+                <svg xmlns="http://www.w3.org/2000/svg" width="15.5" height="8.5" viewBox="0 0 15.5 8.5"  style="transform: rotate(45deg);">
+                  <g id="Link" transform="translate(-1.25 -6.25)">
+                    <path id="Path_16079" data-name="Path 16079" d="M10.4,10.5A3.5,3.5,0,0,1,6.9,14H5.5a3.5,3.5,0,0,1,0-7h.35M7.6,10.5A3.5,3.5,0,0,1,11.1,7h1.4a3.5,3.5,0,0,1,0,7h-.35" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-width="1.5"/>
+                  </g>
+                </svg>
               </button>
               <div class="ge_tooltip_wrapper">
                 <span class="hover_ele_type">Link</span>
@@ -291,7 +372,9 @@ export function buildToolbarButtonsHtml(tools = []) {
        <div class="global_editor_button_group event_group_tool">
          <div class="tool_bar_wrap">
            <button type="button" class="global_editor_button" tabindex="-1" id="removeFormatButton">
-             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 17.5 14"><path d="M9.19,11.377H8.884l.254-.76L7.3,9.2l-.724,2.176H5.69a.437.437,0,0,0-.437.437v.875a.437.437,0,0,0,.437.437h3.5a.437.437,0,0,0,.437-.437v-.875A.437.437,0,0,0,9.19,11.377Zm8.142,1.151L10.311,7.1l1.345-4.035h3.221v.875a.437.437,0,0,0,.437.437h.875a.437.437,0,0,0,.437-.437V1.316a.437.437,0,0,0-.437-.437H4.816a.437.437,0,0,0-.437.437v1.2L1.248.1A.437.437,0,0,0,.633.173L.1.865a.437.437,0,0,0,.077.615L16.26,13.911a.437.437,0,0,0,.615-.077l.536-.692a.437.437,0,0,1-.077-.615ZM8.476,5.685,6.128,3.87v-.8H9.348Z" transform="translate(-0.004 -0.004)" fill="#1a1f22"></path></svg>
+             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 13.598 15.346">
+                  <path id="text_format" data-name="text format" d="M6024.6,7423.347a.5.5,0,1,1,0-1h1.4v-6.467l1.6,2.286v4.181h1.4a.5.5,0,1,1,0,1Zm7.784-.22a.777.777,0,0,1-.5-.319l-9.515-13.587a.775.775,0,1,1,1.271-.889l9.515,13.585a.775.775,0,0,1-.635,1.22A.83.83,0,0,1,6032.383,7423.127Zm-4.786-10.509-1.6-2.282v-.328h-.229l-1.12-1.6h8.149a.8.8,0,0,1,.8.8v1a.8.8,0,1,1-1.6,0v-.2h-4.4v2.614Zm-7.6-2.411v-1a.8.8,0,0,1,.79-.8l-.015.011,1.112,1.587h-.287v.2a.8.8,0,1,1-1.6,0Z" transform="translate(-6020 -7408.001)" fill="#0c0310"></path>
+             </svg>
            </button>
            <div class="ge_tooltip_wrapper"><span class="hover_ele_type">Remove Formatting</span></div>
          </div>
@@ -341,6 +424,7 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
           .ge_tooltip_wrapper.tooltip-above:after{bottom:-4px;top:auto;}
           .dropdown-content.dropdown-below{top:100%;bottom:auto;margin-top:6px;margin-bottom:0;}
           .dropdown-content.dropdown-above{bottom:100%;top:auto;margin-bottom:6px;margin-top:0;}
+          .dropdown-content.font-size_dropdown {min-width: 60px;width: 60px;}
           .dropdown-content.dropdown-below,
           .dropdown-content.dropdown-above{overflow-y:auto;}
         `;
@@ -471,7 +555,42 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
                 const { $from } = editor.state.selection;
                 const node = $from.parent;
                 const h = /heading/.test(node.type.name) ? node.attrs.level : null;
-                tLabel.textContent = h ? `H${h}` : 'T';
+                tLabel.innerHTML = h
+                    ? (
+                     h === 1 ? `
+                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 18 16">
+                      <path id="Path_19316" data-name="Path 19316" d="M424,920l3-1v10m-16-14v7m0,0v7m0-7h8m0-7v7m0,0v7" transform="translate(-410 -914)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                    </svg>
+                  ` :
+                    h === 2 ? `     
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 20 16">
+                         <path id="Path_19317" data-name="Path 19317" d="M735,922.5V922a3,3,0,0,1,3-3h.172a2.829,2.829,0,0,1,2,4.829L735,929h6m-18-14v7m0,0v7m0-7h8m0-7v7m0,0v7" transform="translate(-722 -914)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                    </svg>
+                    ` :
+                       h === 3 ? `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 20 16">
+                          <path id="Path_19326" data-name="Path 19326" d="M111,975h6l-4,4h1a3,3,0,1,1-2.829,4M99,971v7m0,0v7m0-7h8m0-7v7m0,0v7" transform="translate(-98 -970)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                        </svg>
+                        
+                      ` :
+                       h === 4 ? `    
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 20 16">
+                          <path id="Path_19325" data-name="Path 19325" d="M426,975l-2.5,8H428m0,0h1m-1,0v-3m0,3v2m-17-14v7m0,0v7m0-7h8m0-7v7m0,0v7" transform="translate(-410 -970)" fill="none" stroke="#0c0310" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                        </svg>
+                  ` : `H${h}`
+                    )
+                    : `
+                <svg xmlns="http://www.w3.org/2000/svg" width="10.719" height="13.353" viewBox="0 0 10.719 13.353">
+                  <path d="M9.609,3V14.852m-1.387,0H11M14.219,3H5"
+                    transform="translate(-4.25 -2.25)"
+                    fill="#0c0310"
+                    stroke="#0c0310"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.5"/>
+                </svg>
+  `;
+
                 root.querySelectorAll('#textFormatSelectDropdown .dropdown-item').forEach(it => {
                     const fmt = it.getAttribute('data-format');
                     const isActive = (fmt === 'div' && !h) || (fmt === `h${h}`);
