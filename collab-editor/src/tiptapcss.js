@@ -349,13 +349,13 @@ export const TIPTAPCSS = `
 
 .tiptap.ProseMirror ul[data-type=taskList] li label span {
     display: block;
-    width: 1em;
-    height: 1em;
-    border: 1px solid var(--tt-checklist-border-color);
-    border-radius: var(--tt-radius-xs,.25rem);
+    width: 16px;
+    height: 16px;
+    border: 1px solid #bfbfbf;
+    border-radius: 3px;
     position: relative;
     cursor: pointer;
-    background-color: var(--tt-checklist-bg-color);
+    background-color: #fff;
     transition: background-color 80ms ease-out,border-color 80ms ease-out
 }
 
@@ -365,17 +365,26 @@ export const TIPTAPCSS = `
     left: 50%;
     top: 50%;
     transform: translate(-50%,-50%);
-    width: .75em;
-    height: .75em;
-    background-color: var(--tt-checklist-check-icon-color);
+    width: 10px;
+    height: 10px;
+    background-color: #fff;
     opacity: 0;
     -webkit-mask: url("data:image/svg+xml,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22currentColor%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M21.4142%204.58579C22.1953%205.36683%2022.1953%206.63317%2021.4142%207.41421L10.4142%2018.4142C9.63317%2019.1953%208.36684%2019.1953%207.58579%2018.4142L2.58579%2013.4142C1.80474%2012.6332%201.80474%2011.3668%202.58579%2010.5858C3.36683%209.80474%204.63317%209.80474%205.41421%2010.5858L9%2014.1716L18.5858%204.58579C19.3668%203.80474%2020.6332%203.80474%2021.4142%204.58579Z%22%20fill%3D%22currentColor%22%2F%3E%3C%2Fsvg%3E") center/contain no-repeat;
     mask: url("data:image/svg+xml,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22currentColor%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20clip-rule%3D%22evenodd%22%20d%3D%22M21.4142%204.58579C22.1953%205.36683%2022.1953%206.63317%2021.4142%207.41421L10.4142%2018.4142C9.63317%2019.1953%208.36684%2019.1953%207.58579%2018.4142L2.58579%2013.4142C1.80474%2012.6332%201.80474%2011.3668%202.58579%2010.5858C3.36683%209.80474%204.63317%209.80474%205.41421%2010.5858L9%2014.1716L18.5858%204.58579C19.3668%203.80474%2020.6332%203.80474%2021.4142%204.58579Z%22%20fill%3D%22currentColor%22%2F%3E%3C%2Fsvg%3E") center/contain no-repeat
 }
 
+.tiptap.ProseMirror ul[data-type=taskList] li[data-checked=true] label span {
+    background: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.tiptap.ProseMirror ul[data-type=taskList] li[data-checked=true] label span:before {
+    opacity: 1;
+}
+
 .tiptap.ProseMirror ul[data-type=taskList] li label input[type=checkbox]:checked+span {
-    background: var(--tt-checklist-bg-active-color);
-    border-color: var(--tt-checklist-border-active-color)
+    background: #1a73e8;
+    border-color: #1a73e8
 }
 
 .tiptap.ProseMirror ul[data-type=taskList] li label input[type=checkbox]:checked+span:before {
@@ -736,7 +745,8 @@ button.ql-blot-format-toolbar__button_dropdown-menu_item.is-disabled {
 
 .tiptap.ProseMirror a {
     color: var(--link-text-color);
-    text-decoration: underline
+    text-decoration: underline;
+    cursor: pointer;
 }
 
 .tiptap.ProseMirror [data-type=mention] {
@@ -797,13 +807,13 @@ button.ql-blot-format-toolbar__button_dropdown-menu_item.is-disabled {
 }
 
 .tiptap.ProseMirror .is-empty:not(.with-slash)[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
-    content: attr(data-placeholder)
+    content: attr(data-placeholder);
     font-style: italic;
 }
 
 .tiptap.ProseMirror .is-empty.with-slash[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
-    content: "Write or type '/' for command and more options";
-    font-style: italic
+    content: attr(data-placeholder);
+    font-style: italic;
 }
 
 .tiptap.ProseMirror .is-empty[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child):before {
@@ -1612,7 +1622,10 @@ span.suggestion.is-empty:after {
     --tiptap-card-border-color: var(--tt-gray-dark-a-100);
     --tiptap-card-group-label-color: var(--tt-gray-dark-a-800)
 }
-
+.tiptap.ProseMirror ul[data-type=taskList] li[data-checked="true"] label span:before {
+    background-color: green;
+    opacity: 1;
+}
 .tiptap-card {
     --padding: 0.375rem;
     --border-width: 1px;
@@ -1621,7 +1634,7 @@ span.suggestion.is-empty:after {
     box-shadow: var(--tt-shadow-elevated-md);
     background-color: var(--tiptap-card-bg-color);
     border: 1px solid var(--tiptap-card-border-color);
-    display: flex;
+    display: flex;   
     flex-direction: column;
     outline: none;
     align-items: center;

@@ -8,6 +8,7 @@ import TextAlign from '@tiptap/extension-text-align'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import { Extension } from '@tiptap/core'
+import { TextSelection } from '@tiptap/pm/state'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { Table } from '@tiptap/extension-table'
@@ -21,6 +22,7 @@ import { columnResizing, tableEditing } from '@tiptap/pm/tables'
 import UniqueID from '@tiptap/extension-unique-id'
 import SlashCommand from './extensions/SlashCommand.js'
 import { ResizableImage } from './extensions/ResizableImage.js'
+import { Bookmark } from './extensions/Bookmark.js'
 import { CSS } from './iframeEditorCss.js'
 import { TIPTAPCSS } from './tiptapcss'
 import * as Y from 'yjs'
@@ -290,6 +292,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
         width = 0,
         tools = [],
         showFloatingToolbar = false,
+        hideSlashPopup = false,
         baseServerUrl = 'https://backend.timebox.ai/global-editor-api',
         mainEditorDocumentId,
         userName: optUserName,
@@ -429,6 +432,108 @@ export function createEditorIframe(doc, editorId, options = {}) {
 
     // editor
     const el = doc.getElementById('editor_main_container')
+    let editor = null;
+
+    const getPlainTextFromClipboard = (event) => {
+        const dt = event?.clipboardData;
+        if (!dt) return '';
+        const uriList = dt.getData('text/uri-list');
+        if (uriList) return uriList;
+        return dt.getData('text/plain') || '';
+    };
+
+    const stripTrailingPunctuation = (value) =>
+        value.replace(/[),.;!?]+$/g, '');
+
+    const normalizeUrl = (value) => {
+        if (!value) return '';
+        if (/^(https?:)?\/\//i.test(value)) return value;
+        if (/^(mailto:|tel:)/i.test(value)) return value;
+        return `https://${value}`;
+    };
+
+    const isUrlLike = (value) => {
+        if (!value) return false;
+        try {
+            const url = new URL(value, 'http://example.com');
+            return url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'mailto:' || url.protocol === 'tel:';
+        } catch {
+            return false;
+        }
+    };
+
+    const extractSingleUrl = (text) => {
+        if (!text) return '';
+        const trimmed = stripTrailingPunctuation(text.trim());
+        if (!trimmed || /\s/.test(trimmed)) return '';
+        const normalized = normalizeUrl(trimmed);
+        return isUrlLike(normalized) ? normalized : '';
+    };
+
+    const applyLinkPaste = (url) => {
+        if (!editor || !url) return;
+        const { from, to, empty } = editor.state.selection;
+
+        if (empty) {
+            const start = from;
+            editor
+                .chain()
+                .focus()
+                .insertContent(url)
+                .setTextSelection({ from: start, to: start + url.length })
+                .setLink({ href: url })
+                .run();
+            editor.commands.setTextSelection(start + url.length);
+            return;
+        }
+
+        editor
+            .chain()
+            .focus()
+            .extendMarkRange('link')
+            .setLink({ href: url })
+            .run();
+    };
+
+    const insertLinkForPaste = (url) => {
+        if (!editor || !url) return null;
+        const { from, to, empty } = editor.state.selection;
+        if (empty) {
+            const start = from;
+            editor
+                .chain()
+                .focus()
+                .insertContent(url)
+                .setTextSelection({ from: start, to: start + url.length })
+                .setLink({ href: url })
+                .run();
+            editor.commands.setTextSelection(start + url.length);
+            return { from: start, to: start + url.length };
+        }
+
+        editor
+            .chain()
+            .focus()
+            .extendMarkRange('link')
+            .setLink({ href: url })
+            .run();
+        return { from, to };
+    };
+
+    const handleUrlPaste = (event, view) => {
+        const text = getPlainTextFromClipboard(event);
+        const url = extractSingleUrl(text);
+        if (!url) return false;
+        event.preventDefault();
+        insertLinkForPaste(url);
+        return true;
+    };
+
+    const placeholderText = hideSlashPopup
+        ? 'Write your content'
+        : "Write or type '/' for command and more options";
+
+    const placeholderEmptyClass = hideSlashPopup ? 'is-empty' : 'is-empty with-slash';
 
     const extensions = [
         StarterKit.configure({
@@ -437,6 +542,9 @@ export function createEditorIframe(doc, editorId, options = {}) {
             gapcursor: false,
             bulletList: { keepMarks: true, keepAttributes: true },
             orderedList: { keepMarks: true, keepAttributes: true },
+            link: false,       // we provide our own configured Link
+            underline: false,  // we provide our own configured Underline
+            undoRedo: false,   // conflicts with Collaboration
         }),
         UniqueID.configure({
             attributeName: 'uid',
@@ -478,21 +586,39 @@ export function createEditorIframe(doc, editorId, options = {}) {
         CustomTableCell,
         TableHoverOverlay,
         ResizableImage,
+        Bookmark,
         TableScrollWrapper,
-        SlashCommand,
+        ...(hideSlashPopup ? [] : [SlashCommand]),
         FontStyle,
         Color,
         FontCommands,
         Placeholder.configure({
-            placeholder: "Write or type '/' for command and more options",
+            placeholder: placeholderText,
             includeChildren: false,
             showOnlyCurrent: true,
             showOnlyWhenEditable: true,
-            emptyNodeClass: 'is-empty with-slash',
+            emptyNodeClass: placeholderEmptyClass,
         }),
     ];
 
-    const editor = new Editor({
+    // Deduplicate extensions to avoid TipTap warnings (e.g., link/underline) and
+    // drop undo/redo helpers that conflict with Collaboration.
+    const sanitizedExtensions = [];
+    const indexByName = new Map();
+    for (const ext of extensions.filter(Boolean)) {
+        const name = ext?.name || ext?.config?.name || ext?.options?.name;
+        if (name === 'undoRedo') continue; // incompatible with Collaboration
+
+        if (name && indexByName.has(name)) {
+            // Prefer the later instance so explicit configs (e.g., Link) override StarterKit defaults.
+            sanitizedExtensions[indexByName.get(name)] = ext;
+        } else {
+            indexByName.set(name, sanitizedExtensions.length);
+            sanitizedExtensions.push(ext);
+        }
+    }
+
+    editor = new Editor({
         element: el,
         editorProps: {
             attributes: {
@@ -516,10 +642,24 @@ export function createEditorIframe(doc, editorId, options = {}) {
                 }
 
                 if (handled) return true;
+                if (handleUrlPaste(event, view)) return true;
                 return false;
             },
+            handleDOMEvents: {
+                mousedown(view, event) {
+                    if (view.hasFocus()) return false;
+                    const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+                    if (pos?.pos != null) {
+                        const tr = view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(pos.pos)));
+                        view.dispatch(tr);
+                        view.focus();
+                        return true;
+                    }
+                    return false;
+                },
+            },
         },
-        extensions,
+        extensions: sanitizedExtensions,
         autofocus: false,
         injectCSS: false,
     });

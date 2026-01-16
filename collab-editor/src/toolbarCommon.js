@@ -726,6 +726,11 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
     let linkBubble = null;
     let linkInput = null;
     let linkHighlightRange = null;
+    let linkBubbleMode = 'edit';
+    let linkActiveRange = null;
+    let linkOverlay = null;
+    let isHoveringBubble = false;
+    let hoverHideTimer = null;
 
     const hasHighlightExt = () =>
         !!editor.extensionManager.extensions.find(e => e.name === 'highlight');
@@ -781,26 +786,63 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
         }
     }
 
+    function setLinkBubbleMode(mode) {
+        linkBubbleMode = mode === 'view' ? 'view' : 'edit';
+        if (!linkBubble) return;
+        linkBubble.classList.toggle('is-edit', linkBubbleMode === 'edit');
+        linkBubble.classList.toggle('is-view', linkBubbleMode === 'view');
+        if (linkBubbleMode === 'edit') {
+            ensureLinkOverlay();
+            linkOverlay?.classList?.add('open');
+        } else {
+            linkOverlay?.classList?.remove('open');
+        }
+    }
 
     function ensureLinkBubble() {
         if (!rootDoc || linkBubble) return;
         linkBubble = rootDoc.createElement('div');
         linkBubble.className = 'ge_link_bubble';
         linkBubble.innerHTML = `
-          <input type="text" class="ge_link_input" placeholder="Paste a link…" />
-          <button type="button" class="ge_link_apply">Apply</button>
-          <button type="button" class="ge_link_remove" title="Remove link">✕</button>
+          <div class="ge_link_view_row">
+            <a class="ge_link_preview" target="_blank" rel="noopener noreferrer"></a>
+            <button type="button" class="ge_link_edit">Edit</button>
+            <button type="button" class="ge_link_remove" title="Remove link">Remove</button>
+          </div>
+          <div class="ge_link_edit_row">
+            <input type="text" class="ge_link_input" placeholder="Paste a link..." />
+            <button type="button" class="ge_link_apply">Apply</button>
+            <button type="button" class="ge_link_cancel">Cancel</button>
+          </div>
         `;
         rootDoc.body.appendChild(linkBubble);
         linkInput = linkBubble.querySelector('.ge_link_input');
 
         const applyBtn = linkBubble.querySelector('.ge_link_apply');
         const removeBtn = linkBubble.querySelector('.ge_link_remove');
+        const previewLink = linkBubble.querySelector('.ge_link_preview');
+        const editBtn = linkBubble.querySelector('.ge_link_edit');
+        const cancelBtn = linkBubble.querySelector('.ge_link_cancel');
 
         applyBtn.addEventListener('click', () => applyLink());
         removeBtn.addEventListener('click', () => {
             editor.chain().focus().unsetLink().run();
             closeLinkBubble(); // clears highlight too
+        });
+        editBtn.addEventListener('click', () => {
+            setLinkBubbleMode('edit');
+            if (previewLink?.href) {
+                linkInput.value = previewLink.href;
+            }
+            linkInput.select();
+        });
+        cancelBtn.addEventListener('click', () => {
+            const existing = editor.getAttributes('link') || {};
+            if (existing.href) {
+                setLinkBubbleMode('view');
+            } else {
+                closeLinkBubble();
+            }
         });
 
         linkInput.addEventListener('keydown', e => {
@@ -812,13 +854,39 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
                 closeLinkBubble();
             }
         });
+
+        linkBubble.addEventListener('mouseenter', () => {
+            isHoveringBubble = true;
+            if (hoverHideTimer) {
+                clearTimeout(hoverHideTimer);
+                hoverHideTimer = null;
+            }
+        });
+        linkBubble.addEventListener('mouseleave', () => {
+            isHoveringBubble = false;
+            scheduleHoverClose();
+        });
+    }
+
+    function ensureLinkOverlay() {
+        if (!rootDoc || linkOverlay) return;
+        linkOverlay = rootDoc.createElement('div');
+        linkOverlay.className = 'ge_link_overlay';
+        rootDoc.body.appendChild(linkOverlay);
+        linkOverlay.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            closeLinkBubble();
+        });
     }
 
     function closeLinkBubble() {
         if (!linkBubble) return;
         linkBubble.classList.remove('open');
+        linkOverlay?.classList?.remove('open');
         clearLinkTempHighlight();
+        linkActiveRange = null;
     }
+
 
 
     function applyLink() {
@@ -835,46 +903,173 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
             url = 'https://' + url;
         }
 
-        editor
-            .chain()
-            .focus()
-            .extendMarkRange('link')
-            .setLink({ href: url })
-            .run();
+        const { from, to, empty } = editor.state.selection;
+        const existing = editor.getAttributes('link') || {};
+        const hasLink = !!existing.href;
+
+        if (hasLink && linkActiveRange) {
+            editor
+                .chain()
+                .focus()
+                .setTextSelection(linkActiveRange)
+                .setLink({ href: url })
+                .insertContentAt(linkActiveRange, url)
+                .setTextSelection({ from: linkActiveRange.from, to: linkActiveRange.from + url.length })
+                .setLink({ href: url })
+                .run();
+            editor.commands.setTextSelection(linkActiveRange.from + url.length);
+            closeLinkBubble();
+            return;
+        }
+
+        if (empty) {
+            const start = from;
+            editor
+                .chain()
+                .focus()
+                .insertContent(url)
+                .setTextSelection({ from: start, to: start + url.length })
+                .setLink({ href: url })
+                .run();
+            editor.commands.setTextSelection(start + url.length);
+        } else {
+            editor
+                .chain()
+                .focus()
+                .extendMarkRange('link')
+                .setLink({ href: url })
+                .run();
+        }
         closeLinkBubble(); // will also clear temporary highlight
     }
 
-    function openLinkBubble() {
+    function getMarkRangeAtPos($pos, markType) {
+        if (!$pos || !markType) return null;
+        if (!$pos.parent.isTextblock) return null;
+
+        const parent = $pos.parent;
+        const parentPos = $pos.start();
+        let startIndex = $pos.index();
+        let endIndex = startIndex;
+
+        if (parent.childCount === 0) return null;
+        const hasMarkAtIndex = (index) => {
+            if (index < 0 || index >= parent.childCount) return false;
+            const node = parent.child(index);
+            return node.isText && node.marks.some(m => m.type === markType);
+        };
+
+        if (startIndex >= parent.childCount) {
+            startIndex = parent.childCount - 1;
+        }
+
+        if (!hasMarkAtIndex(startIndex)) {
+            const prevIndex = startIndex - 1;
+            const nextIndex = Math.min(parent.childCount - 1, startIndex + 1);
+            if (hasMarkAtIndex(prevIndex)) {
+                startIndex = prevIndex;
+            } else if (hasMarkAtIndex(nextIndex)) {
+                startIndex = nextIndex;
+            } else {
+                return null;
+            }
+        }
+
+        let fromOffset = 0;
+        for (let i = 0; i < parent.childCount; i += 1) {
+            const child = parent.child(i);
+            const size = child.nodeSize;
+            if (i < startIndex) {
+                fromOffset += size;
+                continue;
+            }
+            if (i === startIndex) break;
+        }
+
+        let startOffset = fromOffset;
+        for (let i = startIndex; i > 0; i -= 1) {
+            if (!hasMarkAtIndex(i - 1)) break;
+            startOffset -= parent.child(i - 1).nodeSize;
+        }
+
+        let endOffset = fromOffset + parent.child(startIndex).nodeSize;
+        for (let i = startIndex + 1; i < parent.childCount; i += 1) {
+            if (!hasMarkAtIndex(i)) break;
+            endOffset += parent.child(i).nodeSize;
+        }
+
+        return { from: parentPos + startOffset, to: parentPos + endOffset };
+    }
+
+    function getLinkRange() {
+        const { state } = editor;
+        const markType = state.schema.marks.link;
+        if (!markType) return null;
+        const { $from } = state.selection;
+        return getMarkRangeAtPos($from, markType);
+    }
+
+    function openLinkBubble(mode = 'edit') {
         ensureLinkBubble();
         if (!linkBubble || !rootDoc) return;
 
         const { state, view } = editor;
-        const { from, to } = state.selection;
-
-        // Need some selection
-        if (from === to) return;
-
-        // add temporary highlight over current selection
-        addLinkTempHighlight();
-
-        // current href if selection already has link
+        const { from, to, empty } = state.selection;
         const existing = editor.getAttributes('link') || {};
+        const href = existing.href || '';
 
-        linkInput.value = existing.href || '';
-        linkInput.select();
+        if (empty && !href && mode === 'view') return;
+
+        if (!empty) {
+            addLinkTempHighlight();
+        }
+
+        const previewLink = linkBubble.querySelector('.ge_link_preview');
+        if (previewLink) {
+            previewLink.textContent = href || 'Link';
+            previewLink.href = href || '#';
+        }
+
+        linkActiveRange = getLinkRange();
+
+        if (mode === 'view' && !href) mode = 'edit';
+        setLinkBubbleMode(mode);
+        if (mode === 'edit') {
+            linkInput.value = href;
+            linkInput.select();
+        }
 
         // position bubble near the selection
-        const pos = Math.round((from + to) / 2);
+        const pos = empty ? from : Math.round((from + to) / 2);
         const coords = view.coordsAtPos(pos);
 
         const docRect = rootDoc.body.getBoundingClientRect();
         linkBubble.style.position = 'absolute';
-        linkBubble.style.top = `${coords.bottom - docRect.top + 8}px`;
+        linkBubble.style.top = `${coords.bottom - docRect.top}px`;
         linkBubble.style.left = `${coords.left - docRect.left}px`;
 
         linkBubble.classList.add('open');
-        setTimeout(() => linkInput?.focus(), 0);
+        if (mode === 'edit') {
+            setTimeout(() => linkInput?.focus(), 0);
+        }
     }
+
+    function scheduleHoverClose() {
+        if (linkBubbleMode !== 'view') return;
+        if (hoverHideTimer) clearTimeout(hoverHideTimer);
+        hoverHideTimer = setTimeout(() => {
+            if (isHoveringBubble) return;
+            closeLinkBubble();
+        }, 120);
+    }
+
+    editor.view.dom.addEventListener('click', () => {
+        // Clicks should not auto-open the link bubble; handled via hover.
+        if (!editor.isActive('link')) closeLinkBubble();
+    });
+
+    // Avoid closing bubble when toolbar link button steals focus briefly.
+    let suppressBlurClose = false;
 
     // Close bubble when clicking outside
     rootDoc && rootDoc.addEventListener('mousedown', (e) => {
@@ -883,16 +1078,56 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
         closeLinkBubble();
     });
 
+    editor.view.dom.addEventListener('mouseover', (event) => {
+        const anchor = event.target?.closest?.('a');
+        if (!anchor || !editor.view.dom.contains(anchor)) return;
+        const pos = editor.view.posAtDOM(anchor, 0);
+        editor.chain().setTextSelection(pos).run();
+        openLinkBubble('view');
+    });
+
+    editor.view.dom.addEventListener('mouseout', (event) => {
+        if (event.target?.closest?.('a')) scheduleHoverClose();
+    });
+
+    editor.on('selectionUpdate', () => {
+        if (linkBubbleMode === 'edit') return;
+        closeLinkBubble();
+    });
+    editor.on('blur', () => {
+        if (suppressBlurClose) return;
+        closeLinkBubble();
+    });
+
     // link open bubble
     const linkBtn = $('#linkButton');
     if (linkBtn) {
         // prevent editor selection from collapsing on mousedown
-        linkBtn.addEventListener('mousedown', e => e.preventDefault());
+        linkBtn.addEventListener('mousedown', e => {
+            suppressBlurClose = true;
+            e.preventDefault();
+        });
 
         linkBtn.addEventListener('click', e => {
             e.preventDefault();
             editor.chain().focus();
-            openLinkBubble(); // handles highlight
+            const existing = editor.getAttributes('link') || {};
+            const activeRange = getLinkRange();
+            if (existing?.href && activeRange) {
+                // If link already exists, clicking the button unlinks immediately.
+                editor
+                    .chain()
+                    .focus()
+                    .setTextSelection(activeRange)
+                    .unsetLink()
+                    .run();
+                closeLinkBubble();
+                setTimeout(() => { suppressBlurClose = false; }, 0);
+                return;
+            }
+            openLinkBubble('edit'); // handles highlight
+            // allow blur closing after the click cycle completes
+            setTimeout(() => { suppressBlurClose = false; }, 0);
         });
     }
     // keyboard shortcut Ctrl/Cmd + K
@@ -902,7 +1137,19 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
             if ((e.ctrlKey || e.metaKey) && key === 'k') {
                 e.preventDefault();
                 editor.chain().focus();
-                openLinkBubble();
+                const existing = editor.getAttributes('link') || {};
+                const activeRange = getLinkRange();
+                if (existing?.href && activeRange) {
+                    editor
+                        .chain()
+                        .focus()
+                        .setTextSelection(activeRange)
+                        .unsetLink()
+                        .run();
+                    closeLinkBubble();
+                    return;
+                }
+                openLinkBubble('edit');
             }
         });
     }
@@ -992,3 +1239,4 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
 
     return refresh;
 }
+

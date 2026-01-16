@@ -54,7 +54,7 @@ export const CSS = `
                     .global_editor_edit_main_area:focus,.global_editor_textarea_section:focus{outline:0 solid transparent;text-rendering:auto!important}
                     .global_editor_edit_main_area .slashMenu{position:absolute;background:#fff;border:1px solid #ccc;box-shadow:0 2px 5px rgba(0,0,0,.1);border-radius:4px;padding:5px;z-index:1001}
                     .global_editor_edit_main_area table{border-collapse:collapse;border:1px solid #ccc;table-layout:fixed;width:100%}
-                    .global_editor_edit_main_area table td,.global_editor_edit_main_area table th{border:1px solid #ccc;padding:8px;text-align:left;width:100px;overflow:hidden}
+                    .global_editor_edit_main_area table td,.global_editor_edit_main_area table th{border:1px solid #ccc;padding:8px;text-align:left;width:100px;overflow:visible;position:relative}
                     .global_editor_edit_main_area table td::after,.global_editor_edit_main_area table th{content:'';top:0;right:0;width:5px;position:absolute;cursor:col-resize;user-select:none;background-color:var(--resizer-color);height:var(--resizer-height)}
   
                     .global_editor_textarea_section{display:block;-webkit-box-flex:1;-webkit-flex:1;-moz-box-flex:1;-ms-flex:1;flex:1;margin-bottom:1px;position:relative;overflow:auto;font-size:14px;font-family:Consolas,Courier,"Courier New",monospace;line-height:18px;color:#222;font-weight:300;height:100%!important;width:100%!important;resize:none!important;padding:15px;border:none!important;margin-top:10px;background-color:#fff;border-radius:4px;box-shadow:0 2px 5px rgba(0,0,0,.1)}
@@ -1182,11 +1182,11 @@ img.ProseMirror-separator {
   display: none;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  border-radius: 999px;
+  padding: 10px 10px;
+  border-radius: 10px;
   background: #ffffff;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
-  font-size: 13px;
+  font-size: 13px; 
   z-index: 9999;
 }
 
@@ -1215,6 +1215,116 @@ img.ProseMirror-separator {
   font-weight: 500;
   background: #111827;
   color: #ffffff;
+}
+
+.ge_link_overlay {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  display: none;
+  z-index: 9998;
+}
+
+.ge_link_overlay.open {
+  display: block;
+}
+
+
+.ge_link_bubble.is-view .ge_link_edit_row {
+  display: none;
+}
+
+.ge_link_bubble.is-edit .ge_link_view_row {
+  display: none;
+}
+
+.ge_link_view_row,
+.ge_link_edit_row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ge_link_preview {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+
+.ge_bookmark_card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.ge_bookmark_meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ge_bookmark_title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.ge_bookmark_url {
+  font-size: 12px;
+  color: #6b7280;
+  word-break: break-all;
+}
+
+.ge_bookmark_open {
+  font-size: 12px;
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.ge_mention_card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.ge_mention_link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+
+.ge_mention_title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.ge_mention_url {
+  font-size: 12px;
+  color: #6b7280;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .global_editor_toolbar_button_pane button{
@@ -1470,7 +1580,6 @@ z-index:999999;
                 .ge_link_bubble .ge_link_remove {
                     border-radius: 4px;
                     padding: 3px 6px;
-                    width: 22px;
                     height: 22px;
                 }
                 .ge_link_bubble .ge_link_remove:hover {

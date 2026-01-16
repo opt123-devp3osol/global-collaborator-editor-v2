@@ -158,7 +158,6 @@ function attachAutosave(docId, ydoc) {
   });
 }
 
-
 const app = express();
 
 app.use(

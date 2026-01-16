@@ -37,11 +37,9 @@ export const TableHoverOverlay = Extension.create({
                     overlay.setAttribute('tabindex', '-1')
 
                     const onToolbarClosed = () => {
-                        // your 3 lines:
                         showSelectionOnHover = false;      // hide rectangle again
                         hide(selRect);
                         overlay.classList.remove('ql-table-overlay-active');
-                        doc.body.addEventListener('tbt-table-toolbar-closed', onToolbarClosed, { capture: true });
                         // optional: clear indices so no re-highlight on next layout pass
                         currentRowIndex = null;
                         currentColIndex = null;
@@ -531,7 +529,7 @@ export const TableHoverOverlay = Extension.create({
                             areaSelection = null
                             // clean up our listeners
                             doc.body.removeEventListener('tbt-table-toolbar-opened', onToolbarOpened, { capture: true })
-                            doc.body.removeEventListener('tbt-table-toolbar-opened', onToolbarClosed, { capture: true })
+                            doc.body.removeEventListener('tbt-table-toolbar-closed', onToolbarClosed, { capture: true })
                         },
                     }
                 },

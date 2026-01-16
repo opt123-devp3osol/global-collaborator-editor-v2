@@ -61,6 +61,7 @@ export const TableFormatToolbar = Extension.create({
                     }
                     const showNode = (n) => { n.style.display = 'block' }
                     const hideNode = (n) => { n.style.display = 'none' }
+                    let apiRef = null
 
                     // Track where toolbar opened (so actions target the correct cell)
                     let lastContext = { mode: null, x: 0, y: 0 } // 'column' | 'row' | null
@@ -223,6 +224,11 @@ export const TableFormatToolbar = Extension.create({
 
 
                     // Execute actions
+                    const closeToolbarAndOverlay = () => {
+                        apiRef?.hide?.();
+                        dispatch('tbt-table-toolbar-closed', {});
+                    };
+
                     const runAction = (action, payload) => {
                         const allOverlaysSectionCells = getOverlayCells()
                         if (allOverlaysSectionCells?.length) {
@@ -257,6 +263,7 @@ export const TableFormatToolbar = Extension.create({
                         if (action === 'merge_cells') {
                             const res = editor.chain().focus().mergeCells().run()
                             requestAnimationFrame(markMergedCells)
+                            if (res) closeToolbarAndOverlay();
                             return res
                         }
 
@@ -264,6 +271,7 @@ export const TableFormatToolbar = Extension.create({
                             // Unmerge works when caret is in a merged cell or rectangle spans merged cells
                             const res = editor.chain().focus().splitCell().run()
                             requestAnimationFrame(markMergedCells)
+                            if (res) closeToolbarAndOverlay();
                             return res
                         }
 
@@ -271,13 +279,41 @@ export const TableFormatToolbar = Extension.create({
                         // === ROW / COLUMN ops (unchanged) ===
                         const chain = editor.chain().focus()
                         switch (action) {
-                            case 'delete_table':     return chain.deleteTable().run()
-                            case 'add_column_left':  return chain.addColumnBefore().run()
-                            case 'add_column_right': return chain.addColumnAfter().run()
-                            case 'delete_column':    return chain.deleteColumn().run()
-                            case 'add_row_top':      return chain.addRowBefore().run()
-                            case 'add_row_bottom':   return chain.addRowAfter().run()
-                            case 'delete_row':       return chain.deleteRow().run()
+                            case 'delete_table': {
+                                const ok = chain.deleteTable().run();
+                                if (ok) closeToolbarAndOverlay();
+                                return ok;
+                            }
+                            case 'add_column_left':  {
+                                const ok = chain.addColumnBefore().run();
+                                if (ok) closeToolbarAndOverlay();
+                                return ok;
+                            }
+                            case 'add_column_right': {
+                                const ok = chain.addColumnAfter().run();
+                                if (ok) closeToolbarAndOverlay();
+                                return ok;
+                            }
+                            case 'delete_column': {
+                                const ok = chain.deleteColumn().run();
+                                if (ok) closeToolbarAndOverlay();
+                                return ok;
+                            }
+                            case 'add_row_top': {
+                                const ok = chain.addRowBefore().run();
+                                if (ok) closeToolbarAndOverlay();
+                                return ok;
+                            }
+                            case 'add_row_bottom': {
+                                const ok = chain.addRowAfter().run();
+                                if (ok) closeToolbarAndOverlay();
+                                return ok;
+                            }
+                            case 'delete_row': {
+                                const ok = chain.deleteRow().run();
+                                if (ok) closeToolbarAndOverlay();
+                                return ok;
+                            }
                             default:                 return false
                         }
                     }
@@ -626,6 +662,8 @@ export const TableFormatToolbar = Extension.create({
                         // check toolbar itself (single-cell uses no mask)
                         isOpen: () => toolbar.style.display !== 'none',
                     }
+
+                    apiRef = api
 
 
                     editor.storage.tableFormatToolbar.show = api.show

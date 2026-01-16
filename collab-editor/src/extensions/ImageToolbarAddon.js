@@ -88,11 +88,18 @@ export function mountImageToolbar({ editor, node, getPos, wrapperEl, imgEl, body
     applyAlign(node.attrs.align || 'left')
 
     const positionToolbar = () => {
-        const r = wrapperEl.getBoundingClientRect()
-        const t = toolbar.getBoundingClientRect()
-        const top = (win.scrollY || doc.documentElement.scrollTop || 0) + r.top - t.height - 8
-        const left = (win.scrollX || doc.documentElement.scrollLeft || 0) + r.left + (r.width - t.width) / 2
-        toolbar.style.transform = `translate(${Math.max(8, left)}px, ${Math.max(8, top)}px)`
+        const imgRect = imgEl.getBoundingClientRect()
+        const toolbarRect = toolbar.getBoundingClientRect()
+        const scrollX = win.scrollX || doc.documentElement.scrollLeft || 0
+        const scrollY = win.scrollY || doc.documentElement.scrollTop || 0
+
+        const rawLeft = scrollX + imgRect.left + (imgRect.width - toolbarRect.width) / 2
+        const rawTop = scrollY + imgRect.top - toolbarRect.height - 6
+
+        const clampedLeft = Math.max(8, rawLeft)
+        const clampedTop = Math.max(8, rawTop)
+
+        toolbar.style.transform = `translate(${clampedLeft}px, ${clampedTop}px)`
     }
 
     const updateActiveStates = () => {
