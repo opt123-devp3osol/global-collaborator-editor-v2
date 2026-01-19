@@ -813,8 +813,10 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
           <div class="ge_link_edit_row">
             <label class="ge_link_label">Page or URL</label>
             <input type="text" class="ge_link_input ge_link_input_url" placeholder="Paste a link..." />
+            <div class="ge_link_error ge_link_error_url" aria-live="polite"></div>
             <label class="ge_link_label">Link title</label>
             <input type="text" class="ge_link_input ge_link_input_title" placeholder="Optional title..." />
+            <div class="ge_link_error ge_link_error_title" aria-live="polite"></div>
             <div class="ge_link_edit_actions">
               <button type="button" class="ge_link_remove" title="Remove link">Remove link</button>
               <button type="button" class="ge_link_cancel">Cancel</button>
@@ -830,6 +832,8 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
         const previewLink = linkBubble.querySelector('.ge_link_preview');
         const editBtn = linkBubble.querySelector('.ge_link_edit');
         const cancelBtn = linkBubble.querySelector('.ge_link_cancel');
+        const urlError = linkBubble.querySelector('.ge_link_error_url');
+        const titleError = linkBubble.querySelector('.ge_link_error_title');
 
         const syncPreviewAndAnchor = () => {
             const nextHref = urlInput?.value?.trim() || '';
@@ -886,7 +890,10 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
                 closeLinkBubble();
             }
         });
-        urlInput.addEventListener('input', syncPreviewAndAnchor);
+        urlInput.addEventListener('input', () => {
+            if (urlError) urlError.textContent = '';
+            syncPreviewAndAnchor();
+        });
         titleInput.addEventListener('keydown', e => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -896,7 +903,10 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
                 closeLinkBubble();
             }
         });
-        titleInput.addEventListener('input', syncPreviewAndAnchor);
+        titleInput.addEventListener('input', () => {
+            if (titleError) titleError.textContent = '';
+            syncPreviewAndAnchor();
+        });
 
         linkBubble.addEventListener('mouseenter', () => {
             isHoveringBubble = true;
@@ -934,6 +944,10 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
         clearLinkTempHighlight();
         linkActiveRange = null;
         linkActiveAnchor = null;
+        const urlError = linkBubble.querySelector('.ge_link_error_url');
+        const titleError = linkBubble.querySelector('.ge_link_error_title');
+        if (urlError) urlError.textContent = '';
+        if (titleError) titleError.textContent = '';
     }
 
     function unlinkSelectionOrActiveRange() {
@@ -957,19 +971,40 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
     function applyLink() {
         const urlInput = linkBubble?.querySelector('.ge_link_input_url');
         const titleInput = linkBubble?.querySelector('.ge_link_input_title');
+        const urlError = linkBubble?.querySelector('.ge_link_error_url');
+        const titleError = linkBubble?.querySelector('.ge_link_error_title');
         const urlField = urlInput || linkInput;
         if (!urlField) return;
 
         let url = urlField.value.trim();
+        const titleVal = titleInput?.value?.trim() || '';
+        const urlPattern = /^(https?:\/\/|mailto:|tel:)[^\s]+$/i;
+        if (urlError) urlError.textContent = '';
+        if (titleError) titleError.textContent = '';
+
+        let hasError = false;
         if (!url) {
-            editor.chain().focus().unsetLink().run();
-            closeLinkBubble();
-            return;
+            hasError = true;
+            if (urlError) urlError.textContent = 'Link URL cannot be blank.';
         }
-        // prepend protocol if missing
-        if (!/^https?:\/\//i.test(url) &&
-            !/^mailto:|tel:/i.test(url)) {
-            url = 'https://' + url;
+        if (!titleVal) {
+            hasError = true;
+            if (titleError) titleError.textContent = 'Link title cannot be blank.';
+        }
+        if (!hasError) {
+            // prepend protocol if missing
+            if (!/^https?:\/\//i.test(url) &&
+                !/^mailto:|tel:/i.test(url)) {
+                url = 'https://' + url;
+            }
+            if (!urlPattern.test(url)) {
+                hasError = true;
+                if (urlError) urlError.textContent = 'Enter a valid URL.';
+            }
+        }
+
+        if (hasError) {
+            return;
         }
 
         const { from, to, empty } = editor.state.selection;
@@ -981,10 +1016,10 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
                 .chain()
                 .focus()
                 .setTextSelection(linkActiveRange)
-                .setLink({ href: url, title: titleInput?.value?.trim() || undefined })
+                .setLink({ href: url, title: titleVal || undefined })
                 .insertContentAt(linkActiveRange, url)
                 .setTextSelection({ from: linkActiveRange.from, to: linkActiveRange.from + url.length })
-                .setLink({ href: url, title: titleInput?.value?.trim() || undefined })
+                .setLink({ href: url, title: titleVal || undefined })
                 .run();
             editor.commands.setTextSelection(linkActiveRange.from + url.length);
             closeLinkBubble();
@@ -998,7 +1033,7 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
                 .focus()
                 .insertContent(url)
                 .setTextSelection({ from: start, to: start + url.length })
-                .setLink({ href: url, title: titleInput?.value?.trim() || undefined })
+                .setLink({ href: url, title: titleVal || undefined })
                 .run();
             editor.commands.setTextSelection(start + url.length);
         } else {
@@ -1006,15 +1041,14 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
                 .chain()
                 .focus()
                 .extendMarkRange('link')
-                .setLink({ href: url, title: titleInput?.value?.trim() || undefined })
+                .setLink({ href: url, title: titleVal || undefined })
                 .run();
         }
 
         if (linkActiveAnchor && linkActiveAnchor.isConnected) {
             linkActiveAnchor.setAttribute('href', url);
-            const nextTitle = titleInput?.value?.trim();
-            if (nextTitle) {
-                linkActiveAnchor.textContent = nextTitle;
+            if (titleVal) {
+                linkActiveAnchor.textContent = titleVal;
             } else {
                 linkActiveAnchor.textContent = url;
             }

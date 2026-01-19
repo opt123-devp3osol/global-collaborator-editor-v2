@@ -1224,6 +1224,12 @@ img.ProseMirror-separator {
   color: #d1434b;
   padding: 0;
 }
+.ge_link_error {
+  color: #d1434b;
+  font-size: 12px;
+  min-height: 14px;
+  margin-top: -2px;
+}
 
 .ge_link_overlay {
   position: fixed;
