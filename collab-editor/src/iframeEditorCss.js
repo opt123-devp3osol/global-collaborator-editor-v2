@@ -1224,6 +1224,25 @@ img.ProseMirror-separator {
   color: #d1434b;
   padding: 0;
 }
+.ge_link_bubble .ge_link_save {
+  background: #1a9cf7;
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.ge_link_bubble .ge_link_save:hover {
+  background: #0b88dc;
+}
+.ge_link_edit_actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.ge_link_edit_actions .ge_link_remove.add-mode-hidden {
+  display: none;
+}
 .ge_link_error {
   color: #d1434b;
   font-size: 12px;
@@ -1247,8 +1266,21 @@ img.ProseMirror-separator {
 .ge_link_bubble.is-view .ge_link_edit_row {
   display: none;
 }
+.ge_link_bubble.is-view .ge_link_add_row {
+  display: none;
+}
 
 .ge_link_bubble.is-edit .ge_link_view_row {
+  display: none;
+}
+.ge_link_bubble.is-edit .ge_link_add_row {
+  display: none;
+}
+
+.ge_link_bubble.is-add .ge_link_view_row {
+  display: none;
+}
+.ge_link_bubble.is-add .ge_link_edit_row {
   display: none;
 }
 
@@ -1257,8 +1289,28 @@ img.ProseMirror-separator {
   align-items: center;
   gap: 8px;
 }
+.ge_link_copy {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 6px;
+  color: #374151;
+}
+.ge_link_copy:hover {
+  background: #f3f4f6;
+  border-radius: 6px;
+}
 
 .ge_link_edit_row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ge_link_bubble.is-add .ge_link_remove {
+  display: none;
+}
+.ge_link_add_row {
   display: flex;
   flex-direction: column;
   gap: 8px;
