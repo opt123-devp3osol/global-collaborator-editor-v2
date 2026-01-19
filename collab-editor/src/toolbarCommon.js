@@ -1269,6 +1269,24 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
         return getMarkRangeAtPos($from, markType);
     }
 
+    const isSelectionToolbarVisible = () => {
+        return !!rootDoc?.querySelector('.ge_selection_toolbar.is-visible');
+    };
+
+    // If the cursor is exactly at the start or end boundary of a link,
+    // clear stored marks so newly typed text won't inherit the link.
+    function clearStoredLinkIfAtBoundary() {
+        const { state, view } = editor;
+        const { from, empty } = state.selection;
+        if (!empty) return;
+        const range = getLinkRange();
+        if (!range) return;
+        if (from === range.from || from === range.to) {
+            const tr = state.tr.setStoredMarks([]);
+            view.dispatch(tr);
+        }
+    }
+
     function getAnchorFromRange(range) {
         if (!range || !editor?.view) return null;
         try {
@@ -1316,6 +1334,7 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
         const urlInput = linkBubble.querySelector('.ge_link_input_url');
         const urlInputAdd = linkBubble.querySelector('.ge_link_input_url_add');
         const titleInput = linkBubble.querySelector('.ge_link_input_title');
+        const removeBtn = linkBubble.querySelector('.ge_link_remove');
 
         linkActiveRange = rangeOverride || getLinkRange();
         const derivedAnchor = anchorElement || getAnchorFromRange(linkActiveRange);
@@ -1334,6 +1353,9 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
         toolbarNodes?.forEach(node => {
             node.style.visibility = shouldHideToolbar ? 'hidden' : '';
         });
+        if (removeBtn) {
+            removeBtn.classList.toggle('add-mode-hidden', effectiveMode === 'add');
+        }
 
         if (previewLink) {
             previewLink.textContent = href || 'Link';
@@ -1430,6 +1452,7 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
     editor.view.dom.addEventListener('mouseover', (event) => {
         const anchor = getAnchorFromEvent(event);
         if (!anchor || !editor.view.dom.contains(anchor)) return;
+        if (isSelectionToolbarVisible()) return;
 
         // derive link range from anchor without changing selection
         const pos = editor.view.posAtDOM(anchor, 0);
@@ -1501,9 +1524,21 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
             if (anchor) return;
             closeLinkBubble();
         });
+
+        // Open links in a new tab on click inside the editor iframe
+        rootDoc.addEventListener('click', (event) => {
+            const anchor = getAnchorFromEvent(event);
+            if (!anchor) return;
+            const href = anchor.getAttribute('href');
+            if (!href) return;
+            event.preventDefault();
+            event.stopPropagation();
+            window.open(href, '_blank', 'noopener');
+        });
     }
 
     editor.on('selectionUpdate', () => {
+        clearStoredLinkIfAtBoundary();
         if (linkBubbleMode === 'edit') return;
         closeLinkBubble();
     });
