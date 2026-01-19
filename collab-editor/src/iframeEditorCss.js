@@ -1307,6 +1307,30 @@ img.ProseMirror-separator {
   flex-direction: column;
   gap: 8px;
 }
+.ge_mention_suggestion {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  border-radius: 10px;
+  padding: 6px 0;
+  min-width: 180px;
+  z-index: 99999;
+}
+.ge_mention_suggestion_list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ge_mention_item {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.ge_mention_item.is-active,
+.ge_mention_item:hover {
+  background: #f3f4f6;
+}
 .ge_link_bubble.is-add .ge_link_remove {
   display: none;
 }

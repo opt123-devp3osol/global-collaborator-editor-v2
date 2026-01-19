@@ -20,16 +20,25 @@ export class TextEditor {
             mainEditorDocumentId = documentId || null
 
             if (this.iframeDocument) {
-                const { editor, toolbar, destroy } = createEditorIframe(this.iframeDocument, editorId, {
+                this.options = options || {};
+                const mergedOptions = {
                     ...options,
                     baseServerUrl,
                     mainEditorDocumentId: documentId,
-                });
+                    mentionSelectHandler: (payload) => {
+                        if (typeof this._mentionSelectHandler === 'function') {
+                            this._mentionSelectHandler(payload);
+                        }
+                        if (typeof options?.onMentionSelect === 'function') {
+                            options.onMentionSelect(payload);
+                        }
+                    },
+                };
+                const { editor, toolbar, destroy } = createEditorIframe(this.iframeDocument, editorId, mergedOptions);
 
                 this.editor = editor;
                 this.toolbar = toolbar;
                 this._destroyInner = destroy || null;
-                this.options = options || {};
 
                 if (this.options.makeEditorReadOnly) {
                     this.applyReadOnlyMode();
@@ -197,6 +206,11 @@ export class TextEditor {
         } catch (error) {
             console.error('Error in edntorOnChange:', error.message)
         }
+    }
+
+    onMentionSelect(callback) {
+        if (typeof callback !== 'function') return;
+        this._mentionSelectHandler = callback;
     }
 
     getContent(format = 'text') {
