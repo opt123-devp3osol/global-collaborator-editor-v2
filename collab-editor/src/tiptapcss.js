@@ -574,7 +574,7 @@ button.ql-blot-format-toolbar__button_dropdown-menu_item.is-disabled {
     border: 1px solid var(--tt-codeblock-border);
     margin-top: 1.5em;
     margin-bottom: 1.5em;
-    padding: 1em;
+    padding: 12px;
     font-size: 1rem;
     border-radius: 6px/.375rem
 }
@@ -1715,7 +1715,7 @@ span.suggestion.is-empty:after {
 .tiptap.ProseMirror p {
     font-size: 1rem;
     font-weight: 400;
-    margin-bottom: 10px
+    margin-bottom: 4px
 }
 .tiptap :first-child {
     margin-top: 0

@@ -1749,15 +1749,22 @@ z-index:999999;
                     margin-top:0!important;
                 }
                 .tiptap.ProseMirror ul[data-type=taskList] li label {
-                    padding-top: 8px;
+                    padding-top: 0px;
                 }
                 .tiptap.ProseMirror ul[data-type=taskList] li {
                     align-items: flex-start;
                 }
+                
                 .tiptap.ProseMirror pre {
                     padding: 3px 6px;
                     margin-top: 0;
                 }
+                ul[data-type="taskList"] li p {
+                    margin-bottom: 4px !important;
+                }
+                ul[data-type="taskList"] li label + div {
+    margin-top: 4px !important;
+}
                 .tiptap.ProseMirror .ProseMirror-selectednode .tiptap-image .tiptap-image-container {
                     outline: 2px solid #0e9aef;
                     outline-color: #0e9aef;
