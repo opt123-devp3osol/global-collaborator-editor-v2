@@ -1180,14 +1180,16 @@ img.ProseMirror-separator {
 }
 .ge_link_bubble {
   display: none;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 10px;
-  border-radius: 10px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
   background: #ffffff;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
   font-size: 13px; 
   z-index: 9999;
+  min-width: 260px;
+  max-width: 340px;
 }
 
 .ge_link_bubble.open {
@@ -1195,10 +1197,13 @@ img.ProseMirror-separator {
 }
 
 .ge_link_input {
-  border: none;
+  border: 1px solid #e5e7eb;
   outline: none;
-  min-width: 220px;
+  width: 100%;
   font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
 }
 
 .ge_link_bubble button {
@@ -1207,14 +1212,17 @@ img.ProseMirror-separator {
   font-size: 12px;
   cursor: pointer;
   padding: 2px 6px;
+  color: #374151;
+}
+.ge_link_bubble button:hover {
+  background: #f3f4f6;
+  border-radius: 6px;
 }
 
-.ge_link_bubble .ge_link_apply {
-  border-radius: 999px;
-  padding: 2px 10px;
-  font-weight: 500;
-  background: #111827;
-  color: #ffffff;
+.ge_link_bubble .ge_link_apply { display: none; }
+.ge_link_bubble .ge_link_remove {
+  color: #d1434b;
+  padding: 0;
 }
 
 .ge_link_overlay {
@@ -1238,11 +1246,22 @@ img.ProseMirror-separator {
   display: none;
 }
 
-.ge_link_view_row,
-.ge_link_edit_row {
+.ge_link_view_row {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.ge_link_edit_row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ge_link_label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
 }
 
 .ge_link_preview {
@@ -1563,28 +1582,21 @@ z-index:999999;
                     stroke: none;
                 }
                 .ge_link_bubble {
-                    border-radius: 6px;
-                    box-shadow: 0 0 1px 0 #0004, 0 1px 3px 0 rgba(0, 0, 0, .1), 0 1px 2px -1px rgba(0, 0, 0, .1);
-                    padding: 4px 6px 4px 8px;
-                    gap: 4px;
+                    border-radius: 12px;
+                    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+                    padding: 12px;
+                    gap: 10px;
                 }
-                .ge_link_bubble .ge_link_apply {
-                    padding: 6px 8px;
-                    border-radius: 6px;
-                    font-size: 12px;
-                background: #0e9aef;
-                }
-                .ge_link_bubble .ge_link_apply:hover {
-                    background: #1089d2;
-                }
+                .ge_link_bubble .ge_link_apply { display:none; }
                 .ge_link_bubble .ge_link_remove {
                     border-radius: 4px;
-                    padding: 3px 6px;
-                    height: 22px;
+                    padding: 0;
+                    height: auto;
+                    color: #d1434b;
                 }
                 .ge_link_bubble .ge_link_remove:hover {
-                    color: #000000;
-                    background: #f0f0f0;
+                    color: #b1313a;
+                    background: transparent;
                 }
                 .tiptap.ProseMirror p::selection,  .tiptap.ProseMirror p em::selection,  .tiptap.ProseMirror p strong::selection, .tiptap.ProseMirror h1::selection, .tiptap.ProseMirror h2::selection, .tiptap.ProseMirror h3::selection, .tiptap.ProseMirror h4::selection, u::selection, .tiptap.ProseMirror p span::selection, .tiptap.ProseMirror p *::selection {
                     background-color:#3367d1 !important;
