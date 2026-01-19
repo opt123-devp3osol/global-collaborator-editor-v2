@@ -1,5 +1,5 @@
 // iframeEditor.js
-import { Editor, Node } from '@tiptap/core'
+import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -8,7 +8,7 @@ import TextAlign from '@tiptap/extension-text-align'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import { Extension } from '@tiptap/core'
-import { TextSelection } from '@tiptap/pm/state'
+import { TextSelection, PluginKey } from '@tiptap/pm/state'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { Table } from '@tiptap/extension-table'
@@ -20,10 +20,10 @@ import { TableFormatToolbar } from './extensions/TableFormatToolbar.js'
 import { CustomTableCell, CustomTableHeader } from './extensions/CustomTableCell.js'
 import { columnResizing, tableEditing } from '@tiptap/pm/tables'
 import UniqueID from '@tiptap/extension-unique-id'
-import Suggestion from '@tiptap/suggestion'
 import SlashCommand from './extensions/SlashCommand.js'
 import { ResizableImage } from './extensions/ResizableImage.js'
 import { Bookmark } from './extensions/Bookmark.js'
+import { Mention } from '@tiptap/extension-mention'
 import { CSS } from './iframeEditorCss.js'
 import { TIPTAPCSS } from './tiptapcss'
 import * as Y from 'yjs'
@@ -306,6 +306,17 @@ export function createEditorIframe(doc, editorId, options = {}) {
         mentionSelectHandler,
     } = options
 
+    const normalizedUserList = Array.isArray(userList)
+        ? userList
+            .map(u => {
+                if (typeof u === 'string') return { id: u, label: u }
+                const id = u?.id ?? u?.value ?? u?.username ?? u?.name ?? u?.label
+                const label = u?.label ?? u?.name ?? u?.username ?? u?.id ?? u?.value ?? ''
+                return { id: id || label || '', label: label || id || '' }
+            })
+            .filter(u => u.id && u.label)
+        : []
+
     const isFirefoxExtension =
         typeof window !== 'undefined' &&
         window.location &&
@@ -538,140 +549,6 @@ export function createEditorIframe(doc, editorId, options = {}) {
 
     const placeholderEmptyClass = hideSlashPopup ? 'is-empty' : 'is-empty with-slash';
 
-    const normalizedUserList = Array.isArray(userList)
-        ? userList.map(u => {
-            if (typeof u === 'string') return { id: u, label: u };
-            const id = u?.id || u?.value || u?.username || u?.name || u?.label;
-            const label = u?.label || u?.name || u?.username || u?.id || u?.value || '';
-            return { id: id || label, label: label || id || '' };
-        }).filter(u => u.id && u.label)
-        : [];
-
-    const MentionNode = Node.create({
-        name: 'mention',
-        group: 'inline',
-        inline: true,
-        atom: true,
-        selectable: false,
-        addAttributes() {
-            return {
-                id: { default: '' },
-                label: { default: '' },
-            };
-        },
-        parseHTML() {
-            return [{ tag: 'span[data-mention]' }];
-        },
-        renderHTML({ node }) {
-            const label = node.attrs.label || node.attrs.id || '';
-            return ['span', { 'data-mention': '', class: 'tiptap-mention' }, `@${label}`];
-        },
-        addProseMirrorPlugins() {
-            const suggestion = this.options.suggestion || {};
-            return [
-                Suggestion({
-                    char: '@',
-                    startOfLine: false,
-                    ...suggestion,
-                }),
-            ];
-        },
-    });
-
-    const mentionSuggestion = MentionNode.configure({
-        suggestion: {
-            char: '@',
-            startOfLine: false,
-            items: ({ query }) => {
-                const q = (query || '').toLowerCase();
-                return normalizedUserList
-                    .filter(u => u.label.toLowerCase().includes(q))
-                    .slice(0, 8);
-            },
-            command: ({ editor, range, props }) => {
-                const label = props.label || props.name || props.value || props.id || '';
-                const id = props.id || label;
-                if (!label) return;
-                editor.chain().focus().insertContentAt(range, [
-                    { type: 'mention', attrs: { id, label } },
-                    { type: 'text', text: ' ' },
-                ]).run();
-                mentionSelectHandler?.({ id, label });
-            },
-            render: () => {
-                let popup;
-                let list;
-                let selectedIndex = 0;
-                const resetSelection = () => {
-                    if (!list) return;
-                    const items = Array.from(list.querySelectorAll('li'));
-                    items.forEach((li, idx) => li.classList.toggle('is-active', idx === selectedIndex));
-                };
-                const renderList = (props) => {
-                    if (!list || !popup) return;
-                    selectedIndex = Math.max(0, Math.min(selectedIndex, Math.max(0, props.items.length - 1)));
-                    list.innerHTML = '';
-                    props.items.forEach((item, idx) => {
-                        const li = rootDoc.createElement('li');
-                        li.textContent = `@${item.label}`;
-                        li.className = 'ge_mention_item';
-                        li.addEventListener('mousedown', (e) => {
-                            e.preventDefault();
-                            props.command({ id: item.id, label: item.label });
-                        });
-                        list.appendChild(li);
-                        if (idx === selectedIndex) li.classList.add('is-active');
-                    });
-                    const coords = editor.view.coordsAtPos(props.range.from);
-                    const docRect = rootDoc.body.getBoundingClientRect();
-                    popup.style.position = 'absolute';
-                    popup.style.left = `${coords.left - docRect.left}px`;
-                    popup.style.top = `${coords.bottom - docRect.top + 4}px`;
-                };
-                return {
-                    onStart: (props) => {
-                        popup = rootDoc.createElement('div');
-                        popup.className = 'ge_mention_suggestion';
-                        list = rootDoc.createElement('ul');
-                        list.className = 'ge_mention_suggestion_list';
-                        popup.appendChild(list);
-                        rootDoc.body.appendChild(popup);
-                        selectedIndex = 0;
-                        renderList(props);
-                    },
-                    onUpdate: (props) => {
-                        renderList(props);
-                    },
-                    onKeyDown: (props) => {
-                        if (!props.items?.length) return false;
-                        if (props.event.key === 'ArrowDown') {
-                            selectedIndex = (selectedIndex + 1) % props.items.length;
-                            resetSelection();
-                            return true;
-                        }
-                        if (props.event.key === 'ArrowUp') {
-                            selectedIndex = (selectedIndex - 1 + props.items.length) % props.items.length;
-                            resetSelection();
-                            return true;
-                        }
-                        if (props.event.key === 'Enter') {
-                            const item = props.items[selectedIndex];
-                            if (item) props.command({ id: item.id, label: item.label });
-                            return true;
-                        }
-                        return false;
-                    },
-                    onExit: () => {
-                        popup?.remove();
-                        popup = null;
-                        list = null;
-                        selectedIndex = 0;
-                    },
-                };
-            },
-        },
-    });
-
     const extensions = [
         StarterKit.configure({
             history: false,
@@ -683,7 +560,33 @@ export function createEditorIframe(doc, editorId, options = {}) {
             underline: false,  // we provide our own configured Underline
             undoRedo: false,   // conflicts with Collaboration
         }),
-        mentionSuggestion,
+        Mention.configure({
+            HTMLAttributes: { class: 'tiptap-mention' },
+            userList: normalizedUserList,
+            suggestion: {
+                char: '@',
+                startOfLine: false,
+                pluginKey: new PluginKey(`mentionSuggestion_${docId}`),
+                items: ({ query }) => {
+                    const q = (query || '').toLowerCase();
+                    return normalizedUserList.filter(u => u.label.toLowerCase().includes(q)).slice(0, 8);
+                },
+                command: ({ editor, range, props }) => {
+                    const label = props.label || props.name || props.value || props.id || '';
+                    const id = props.id || label;
+                    if (!label) return;
+                    editor
+                        .chain()
+                        .focus()
+                        .insertContentAt(range, [
+                            { type: 'mention', attrs: { id, label } },
+                            { type: 'text', text: ' ' },
+                        ], { updateSelection: false })
+                        .run();
+                    mentionSelectHandler?.({ id, label });
+                },
+            },
+        }),
         UniqueID.configure({
             attributeName: 'uid',
             types: [
