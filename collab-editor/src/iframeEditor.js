@@ -23,7 +23,7 @@ import UniqueID from '@tiptap/extension-unique-id'
 import SlashCommand from './extensions/SlashCommand.js'
 import { ResizableImage } from './extensions/ResizableImage.js'
 import { Bookmark } from './extensions/Bookmark.js'
-import { Mention as MentionCommand } from './extensions/MentionCommand.js'
+import { Mention } from '@tiptap/extension-mention'
 import { CSS } from './iframeEditorCss.js'
 import { TIPTAPCSS } from './tiptapcss'
 import * as Y from 'yjs'
@@ -294,6 +294,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
         tools = [],
         showFloatingToolbar = false,
         hideSlashPopup = false,
+        isMentionPopup = true,
         baseServerUrl = 'https://backend.timebox.ai/global-editor-api',
         mainEditorDocumentId,
         userName: optUserName,
@@ -560,13 +561,35 @@ export function createEditorIframe(doc, editorId, options = {}) {
             underline: false,  // we provide our own configured Underline
             undoRedo: false,   // conflicts with Collaboration
         }),
-        MentionCommand.configure({
+        Mention.configure({
             HTMLAttributes: { class: 'tiptap-mention' },
             userList: normalizedUserList,
-            onSelect: mentionSelectHandler,
-            suggestion: {
-                pluginKey: new PluginKey(`mentionSuggestion_${docId}`),
-            },
+            suggestion: isMentionPopup
+                ? {
+                    char: '@',
+                    startOfLine: false,
+                    pluginKey: new PluginKey(`mentionSuggestion_${docId}_${editorId}`),
+                    items: ({ query }) => {
+                        const q = (query || '').toLowerCase();
+                        return normalizedUserList.filter(u => u.label.toLowerCase().includes(q)).slice(0, 8);
+                    },
+                    command: ({ editor, range, props }) => {
+                        const label = props.label || props.name || props.value || props.id || '';
+                        const id = props.id || label;
+                        if (!label) return;
+                        editor
+                            .chain()
+                            .focus()
+                            .insertContentAt(range, [
+                                { type: 'mention', attrs: { id, label } },
+                                { type: 'text', text: ' ' },
+                            ], { updateSelection: false })
+                            .setTextSelection(range.from + label.length + 2) // place cursor after mention + space
+                            .run();
+                        mentionSelectHandler?.({ id, label, range });
+                    },
+                }
+                : false,
         }),
         UniqueID.configure({
             attributeName: 'uid',

@@ -2,8 +2,6 @@ import { Node } from '@tiptap/core';
 import Suggestion from '@tiptap/suggestion';
 import { PluginKey } from '@tiptap/pm/state';
 
-const mentionPluginKey = new PluginKey('mentionSuggestion');
-
 // A drop-in replacement resembling Mention.configure({ HTMLAttributes, suggestion })
 export const Mention = Node.create({
   name: 'mention',
@@ -19,13 +17,22 @@ export const Mention = Node.create({
       suggestion: {},
       userList: [],
       onSelect: null,
+      pluginKey: null,
     };
   },
 
   addAttributes() {
     return {
-      id: { default: '' },
-      label: { default: '' },
+      id: {
+        default: '',
+        parseHTML: (el) => el.getAttribute('data-id') || '',
+        renderHTML: (attrs) => (attrs.id ? { 'data-id': attrs.id } : {}),
+      },
+      label: {
+        default: '',
+        parseHTML: (el) => el.getAttribute('data-label') || '',
+        renderHTML: (attrs) => (attrs.label ? { 'data-label': attrs.label } : {}),
+      },
     };
   },
 
@@ -58,9 +65,13 @@ export const Mention = Node.create({
           .filter((u) => u.id && u.label)
       : [];
 
+    const key =
+      this.options.pluginKey ||
+      new PluginKey(`mentionSuggestion_${this.editor?.options?.element?.id || Math.random().toString(36).slice(2)}`);
+
     return [
       Suggestion({
-        pluginKey: mentionPluginKey,
+        pluginKey: key,
         editor: this.editor,
         char: '@',
         startOfLine: false,
@@ -83,8 +94,9 @@ export const Mention = Node.create({
               ],
               { updateSelection: false },
             )
+            .setTextSelection(range.from + label.length + 2) // after "@label "
             .run();
-          this.options.onSelect?.({ id, label });
+          this.options.onSelect?.({ id, label, range });
         },
         render: () => {
           let popup;
