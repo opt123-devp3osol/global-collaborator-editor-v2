@@ -23,7 +23,7 @@ import UniqueID from '@tiptap/extension-unique-id'
 import SlashCommand from './extensions/SlashCommand.js'
 import { ResizableImage } from './extensions/ResizableImage.js'
 import { Bookmark } from './extensions/Bookmark.js'
-import { Mention } from '@tiptap/extension-mention'
+import { Mention as MentionCommand } from './extensions/MentionCommand.js'
 import { CSS } from './iframeEditorCss.js'
 import { TIPTAPCSS } from './tiptapcss'
 import * as Y from 'yjs'
@@ -560,31 +560,12 @@ export function createEditorIframe(doc, editorId, options = {}) {
             underline: false,  // we provide our own configured Underline
             undoRedo: false,   // conflicts with Collaboration
         }),
-        Mention.configure({
+        MentionCommand.configure({
             HTMLAttributes: { class: 'tiptap-mention' },
             userList: normalizedUserList,
+            onSelect: mentionSelectHandler,
             suggestion: {
-                char: '@',
-                startOfLine: false,
                 pluginKey: new PluginKey(`mentionSuggestion_${docId}`),
-                items: ({ query }) => {
-                    const q = (query || '').toLowerCase();
-                    return normalizedUserList.filter(u => u.label.toLowerCase().includes(q)).slice(0, 8);
-                },
-                command: ({ editor, range, props }) => {
-                    const label = props.label || props.name || props.value || props.id || '';
-                    const id = props.id || label;
-                    if (!label) return;
-                    editor
-                        .chain()
-                        .focus()
-                        .insertContentAt(range, [
-                            { type: 'mention', attrs: { id, label } },
-                            { type: 'text', text: ' ' },
-                        ], { updateSelection: false })
-                        .run();
-                    mentionSelectHandler?.({ id, label });
-                },
             },
         }),
         UniqueID.configure({
