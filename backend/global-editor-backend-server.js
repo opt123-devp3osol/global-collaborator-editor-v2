@@ -7,8 +7,7 @@ import fs from 'fs';
 import multer from 'multer';
 import * as Y from 'yjs';
 import * as awarenessProtocol from 'y-protocols/awareness';
-import pool from "./connection.js";
-import {insertCommonApiCall, updateCommonApiCall} from "./commonModelHelper.js";
+import {insertCommonApiCall, updateCommonApiCall, queryCommon} from "./commonModelHelper.js";
 
 const yDocs = new Map();           // docId -> Y.Doc
 const awarenessStates = new Map(); // docId -> Awareness
@@ -471,6 +470,33 @@ app.get('/global-editor-api/getEditorTestFileApiCall/:docId', (req, res) => {
 
 app.get('/global-editor-api', (req, res) => {
   res.send(`Node Server is ready at port ${port}`);
+});
+
+// Batch fetch subpage titles
+app.post('/global-editor-api/getSubPageTitles', async (req, res) => {
+  try {
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || !ids.length) {
+      return res.json({ titles: {} });
+    }
+
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+    const { rows } = await queryCommon(
+        `SELECT id, title, doc_name, name FROM timebox_docs_entries WHERE id IN (${placeholders})`,
+        ids
+    );
+
+    const titles = {};
+    rows.forEach(r => {
+      const t = r.title || r.doc_name || r.name || 'Untitled';
+      titles[r.id] = t;
+    });
+
+    return res.json({ titles });
+  } catch (err) {
+    console.error('getSubPageTitles error', err);
+    return res.status(500).json({ titles: {}, error: 'Server error' });
+  }
 });
 
 app.use((err, req, res, next) => {

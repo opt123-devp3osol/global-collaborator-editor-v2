@@ -36,12 +36,14 @@
   document.addEventListener('DOMContentLoaded', () => {
     let options = {
       tools:[],
-      object_id:'213123-123-fdg',
+      object_id:'213123-123-fadg',
       object_type:'editor',
       timebox_appended_note_type_id:3,
       showFloatingToolbar:true,
       makeEditorReadOnly: false,
       hideSlashPopup: false,
+      isMentionPopup:true,
+      isSubPageOption:true,
       userList:[
         { id: 'mayank23-dev2', label: 'mayank23-dev2' },
         { id: 'michael.makras', label: 'Michael Makras' },
@@ -52,12 +54,10 @@
       width:1000,
       height:300,
       onMentionSelect: (payload) => {
-        // payload: { id, label, range? }
         console.log('Mention selected:', payload);
-        const display = document.getElementById('mention_output');
-        if (display) {
-          display.textContent = `Last mention: @${payload.label} (id: ${payload.id})`;
-        }
+      },
+      onSubPageSelect: (payload) => {
+        console.log('Sub Page selected:', payload);
       }
     }
     GlobalTextEditorLib.TextEditor.create('editor_iframe','editor','213123-123-fadg',options);
@@ -65,6 +65,9 @@
 </script>
 <div id="mention_output" style="position:fixed; bottom:12px; left:12px; padding:8px 12px; background:#eef3ff; border:1px solid #d1dbff; border-radius:6px; font-family:Arial, sans-serif; font-size:13px; color:#2c3e50;">
   Last mention: (none yet)
+</div>
+<div id="subpage_output" style="position:fixed; bottom:12px; left:240px; padding:8px 12px; background:#fff4e6; border:1px solid #ffd5a1; border-radius:6px; font-family:Arial, sans-serif; font-size:13px; color:#8a4b0f;">
+  Sub-page option: (not used)
 </div>
 </body>
 </html>

@@ -26,6 +26,7 @@ import { Bookmark } from './extensions/Bookmark.js'
 import { Mention } from '@tiptap/extension-mention'
 import { CSS } from './iframeEditorCss.js'
 import { TIPTAPCSS } from './tiptapcss'
+import { SubPageLink } from './extensions/SubPageLink.js'
 import * as Y from 'yjs'
 import Collaboration from '@tiptap/extension-collaboration'
 import * as awarenessProtocol from 'y-protocols/awareness'
@@ -294,7 +295,8 @@ export function createEditorIframe(doc, editorId, options = {}) {
         tools = [],
         showFloatingToolbar = false,
         hideSlashPopup = false,
-        isMentionPopup = true,
+        isMentionPopup = false,
+        isSubPageOption = false,
         baseServerUrl = 'https://backend.timebox.ai/global-editor-api',
         mainEditorDocumentId,
         userName: optUserName,
@@ -305,6 +307,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
         timebox_appended_note_type_id,
         userList = [],
         mentionSelectHandler,
+        subPageSelectHandler,
     } = options
 
     const normalizedUserList = Array.isArray(userList)
@@ -318,10 +321,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
             .filter(u => u.id && u.label)
         : []
 
-    const isFirefoxExtension =
-        typeof window !== 'undefined' &&
-        window.location &&
-        window.location.protocol === 'moz-extension:'
+    const isFirefoxExtension = typeof window !== 'undefined' && window.location && window.location.protocol === 'moz-extension:';
 
     if (isFirefoxExtension) {
         if (doc.body) {
@@ -550,6 +550,83 @@ export function createEditorIframe(doc, editorId, options = {}) {
 
     const placeholderEmptyClass = hideSlashPopup ? 'is-empty' : 'is-empty with-slash';
 
+    // Mention popup renderer that attaches to the iframe document (TipTap suggestion render API)
+    const createMentionRenderer = () => {
+        let popup;
+        let list;
+        let selectedIndex = 0;
+
+        const resetSelection = () => {
+            if (!list) return;
+            const items = Array.from(list.querySelectorAll('li'));
+            items.forEach((li, idx) => li.classList.toggle('is-active', idx === selectedIndex));
+        };
+
+        const renderList = (props) => {
+            if (!list || !popup) return;
+            selectedIndex = Math.max(0, Math.min(selectedIndex, Math.max(0, props.items.length - 1)));
+            list.innerHTML = '';
+            props.items.forEach((item, idx) => {
+                const li = doc.createElement('li');
+                li.textContent = `@${item.label}`;
+                li.className = 'ge_mention_item';
+                li.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    props.command({ id: item.id, label: item.label });
+                });
+                list.appendChild(li);
+                if (idx === selectedIndex) li.classList.add('is-active');
+            });
+            const coords = props.editor?.view?.coordsAtPos(props.range.from);
+            const docRect = doc.body.getBoundingClientRect();
+            if (!coords) return;
+            popup.style.position = 'absolute';
+            popup.style.left = `${coords.left - docRect.left}px`;
+            popup.style.top = `${coords.bottom - docRect.top + 4}px`;
+        };
+
+        return {
+            onStart: (props) => {
+                popup = doc.createElement('div');
+                popup.className = 'ge_mention_suggestion';
+                list = doc.createElement('ul');
+                list.className = 'ge_mention_suggestion_list';
+                popup.appendChild(list);
+                doc.body.appendChild(popup);
+                selectedIndex = 0;
+                renderList(props);
+            },
+            onUpdate: (props) => {
+                renderList(props);
+            },
+            onKeyDown: (props) => {
+                if (!props.items?.length) return false;
+                if (props.event.key === 'ArrowDown') {
+                    selectedIndex = (selectedIndex + 1) % props.items.length;
+                    resetSelection();
+                    return true;
+                }
+                if (props.event.key === 'ArrowUp') {
+                    selectedIndex = (selectedIndex - 1 + props.items.length) % props.items.length;
+                    resetSelection();
+                    return true;
+                }
+                if (props.event.key === 'Enter') {
+                    const item = props.items[selectedIndex];
+                    if (item) props.command({ id: item.id, label: item.label });
+                    return true;
+                }
+                return false;
+            },
+            onExit: () => {
+                popup?.remove();
+                popup = null;
+                list = null;
+                selectedIndex = 0;
+            },
+        };
+    };
+
     const extensions = [
         StarterKit.configure({
             history: false,
@@ -561,36 +638,37 @@ export function createEditorIframe(doc, editorId, options = {}) {
             underline: false,  // we provide our own configured Underline
             undoRedo: false,   // conflicts with Collaboration
         }),
-        Mention.configure({
+        isMentionPopup && (
+          Mention.configure({
             HTMLAttributes: { class: 'tiptap-mention' },
             userList: normalizedUserList,
-            suggestion: isMentionPopup
-                ? {
-                    char: '@',
-                    startOfLine: false,
-                    pluginKey: new PluginKey(`mentionSuggestion_${docId}_${editorId}`),
-                    items: ({ query }) => {
-                        const q = (query || '').toLowerCase();
-                        return normalizedUserList.filter(u => u.label.toLowerCase().includes(q)).slice(0, 8);
-                    },
-                    command: ({ editor, range, props }) => {
-                        const label = props.label || props.name || props.value || props.id || '';
-                        const id = props.id || label;
-                        if (!label) return;
-                        editor
-                            .chain()
-                            .focus()
-                            .insertContentAt(range, [
-                                { type: 'mention', attrs: { id, label } },
-                                { type: 'text', text: ' ' },
-                            ], { updateSelection: false })
-                            .setTextSelection(range.from + label.length + 2) // place cursor after mention + space
-                            .run();
-                        mentionSelectHandler?.({ id, label, range });
-                    },
-                }
-                : false,
-        }),
+            suggestion:
+                {
+                char: '@',
+                startOfLine: false,
+                pluginKey: new PluginKey(`mentionSuggestion_${docId}_${editorId}`),
+                items: ({ query }) => {
+                    const q = (query || '').toLowerCase();
+                    return normalizedUserList.filter(u => u.label.toLowerCase().includes(q)).slice(0, 8);
+                },
+                command: ({ editor, range, props }) => {
+                    const label = props.label || props.name || props.value || props.id || '';
+                    const id = props.id || label;
+                    if (!label) return;
+                    editor
+                        .chain()
+                        .focus()
+                        .insertContentAt(range, [
+                            { type: 'mention', attrs: { id, label } },
+                            { type: 'text', text: ' ' },
+                        ], { updateSelection: false })
+                        .setTextSelection(range.from + label.length + 2) // place cursor after mention + space
+                        .run();
+                    mentionSelectHandler?.({ id, label, range });
+                },
+                render: () => createMentionRenderer(),
+            }
+        })),
         UniqueID.configure({
             attributeName: 'uid',
             types: [
@@ -617,7 +695,17 @@ export function createEditorIframe(doc, editorId, options = {}) {
             user: { name: userName, color: userColor },
         }),
         Underline,
-        Link.configure({ openOnClick: false, autolink: true, defaultProtocol: 'https' }),
+        Link.configure({
+            openOnClick: false,
+            autolink: true,
+            defaultProtocol: 'https',
+            // allow file:// and relative paths (e.g., /time-tracking/...)
+            validate: href => {
+                if (!href) return false
+                const pattern = /^(https?:|mailto:|tel:|file:|\/)/i
+                return pattern.test(href.trim())
+            },
+        }),
         Highlight.configure({ multicolor: true }),
         TextAlign.configure({ types: ['heading', 'paragraph'] }),
         TaskList,
@@ -633,7 +721,11 @@ export function createEditorIframe(doc, editorId, options = {}) {
         ResizableImage,
         Bookmark,
         TableScrollWrapper,
-        ...(hideSlashPopup ? [] : [SlashCommand]),
+        SubPageLink,
+        ...(hideSlashPopup ? [] : [SlashCommand.configure({
+            enableSubPage: isSubPageOption,
+            onSubPageSelect: subPageSelectHandler,
+        })]),
         FontStyle,
         Color,
         FontCommands,
@@ -771,6 +863,81 @@ export function createEditorIframe(doc, editorId, options = {}) {
 
     const toolbarHost = doc.getElementById('ge_toolbar_main_element');
 
+    /**
+     * Subpage title sync (batch fetch) and navigation
+     */
+    let titleRefreshTimer = null;
+
+    const applyTitlesToDocument = (titleMap = {}) => {
+        const { state } = editor;
+        const tr = state.tr;
+        let changed = false;
+        state.doc.descendants((node, pos) => {
+            if (node.type?.name !== 'subPageLink') return;
+            const id = node.attrs?.id;
+            if (!id) return;
+            const title = titleMap[id];
+            if (!title || title === node.attrs.title) return;
+            tr.setNodeMarkup(pos, undefined, { ...node.attrs, title });
+            changed = true;
+        });
+        if (changed) editor.view.dispatch(tr);
+
+        // Update rendered DOM immediately
+        const anchors = editor.view.dom.querySelectorAll('a[data-subpage-id]');
+        anchors.forEach(a => {
+            const id = a.getAttribute('data-subpage-id');
+            const title = titleMap[id];
+            if (!title) return;
+            const label = a.querySelector('.tb-subpage-title');
+            if (label) {
+                label.textContent = title;
+                label.setAttribute('data-subpage-title', title);
+            }
+        });
+    };
+
+    const fetchAndApplySubPageTitles = async () => {
+        const anchors = editor?.view?.dom?.querySelectorAll?.('a[data-subpage-id]') || [];
+        const ids = Array.from(new Set(Array.from(anchors).map(a => a.getAttribute('data-subpage-id')).filter(Boolean)));
+        if (!ids.length) return;
+        try {
+            const resp = await fetch(`${baseServerUrl}/getSubPageTitles`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids }),
+            });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            const titleMap = data?.titles || {};
+            applyTitlesToDocument(titleMap);
+        } catch (err) {
+            console.error('Failed to fetch subpage titles', err);
+        }
+    };
+
+    const scheduleTitleRefresh = () => {
+        if (titleRefreshTimer) clearTimeout(titleRefreshTimer);
+        titleRefreshTimer = setTimeout(fetchAndApplySubPageTitles, 200);
+    };
+
+    const handleSubPageClick = (event) => {
+        const anchor = event.target?.closest?.('a[data-subpage-id]');
+        if (!anchor) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const id = anchor.getAttribute('data-subpage-id');
+        const href = anchor.getAttribute('href') || '';
+        if (typeof subPageNavigateHandler === 'function') {
+            subPageNavigateHandler({ id, href });
+            return;
+        }
+        try {
+            doc.defaultView?.parent?.postMessage({ type: 'timebox-open-subpage', id, href }, '*');
+        } catch {}
+    };
+    doc.addEventListener('click', handleSubPageClick, true);
+
     if (showFloatingToolbar) {
         createSelectionToolbar(toolbarHost, tools);
         wireSelectionToolbar(editor, toolbarHost);
@@ -798,7 +965,16 @@ export function createEditorIframe(doc, editorId, options = {}) {
             // hide loader (safe)
             hideLoader();
         } catch {}
+        try {
+            doc.removeEventListener('click', handleSubPageClick, true);
+        } catch {}
+        try {
+            if (titleRefreshTimer) clearTimeout(titleRefreshTimer);
+        } catch {}
     };
+
+    scheduleTitleRefresh();
+    editor.on('update', () => scheduleTitleRefresh());
 
     return { editor, toolbar: toolbarHost, destroy };
 }

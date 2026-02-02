@@ -33,6 +33,14 @@ export class TextEditor {
                             options.onMentionSelect(payload);
                         }
                     },
+                    subPageSelectHandler: (payload) => {
+                        if (typeof this._subPageSelectHandler === 'function') {
+                            this._subPageSelectHandler(payload);
+                        }
+                        if (typeof options?.onSubPageSelect === 'function') {
+                            options.onSubPageSelect(payload);
+                        }
+                    },
                 };
                 const { editor, toolbar, destroy } = createEditorIframe(this.iframeDocument, editorId, mergedOptions);
 
@@ -211,6 +219,11 @@ export class TextEditor {
     onMentionSelect(callback) {
         if (typeof callback !== 'function') return;
         this._mentionSelectHandler = callback;
+    }
+
+    onSubPageSelect(callback) {
+        if (typeof callback !== 'function') return;
+        this._subPageSelectHandler = callback;
     }
 
     getContent(format = 'text') {

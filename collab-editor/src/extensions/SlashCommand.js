@@ -34,7 +34,7 @@ const triggerImageUpload = (editor) => {
     }
 }
 
-const ITEMS = [
+const BASE_ITEMS = [
     // --- Style ---
     { group: 'Style', label: 'Text',          run: ({ editor }) => editor.chain().focus().setParagraph().run() },
     { group: 'Style', label: 'Heading 1',     run: ({ editor }) => editor.chain().focus().toggleHeading({ level: 1 }).run() },
@@ -100,6 +100,44 @@ const ITEMS = [
     },
 ]
 
+const buildItems = (opts = {}) => {
+    const items = [...BASE_ITEMS]
+
+    if (opts.enableSubPage) {
+        items.push({
+            group: 'Insert',
+            label: 'Sub Page',
+            run: ({ editor, range }) => {
+                const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                const randStr = Array.from({ length: 10 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('');
+
+                // always use a relative path so it opens in the same tab
+                const url = `/time-tracking/home/docs/tdocs/${randStr}`;
+                const displayTitle = 'Untitled';
+
+                // Prevent duplicate insertion if same id already exists (safety guard)
+                const docSize = editor?.state?.doc?.content?.size || 0;
+                const safeFrom = Math.max(0, Math.min(range.from, docSize));
+                const safeTo = Math.max(safeFrom, Math.min(range.to ?? range.from, docSize));
+
+                editor
+                    .chain()
+                    .focus()
+                    .deleteRange({ from: safeFrom, to: safeTo })
+                    .insertContentAt(safeFrom, { type: 'subPageLink', attrs: { id: randStr, href: url, title: displayTitle } }, { updateSelection: false })
+                    .run();
+
+                if (typeof opts.onSubPageSelect === 'function') {
+                    opts.onSubPageSelect({ id: randStr, label: displayTitle, range, url });
+                }
+                return true;
+            },
+        });
+    }
+
+    return items
+}
+
 // simple word counter (treats contiguous whitespace as one)
 const wordCount = (s) => (s || '').trim().split(/\s+/).filter(Boolean).length
 
@@ -108,20 +146,13 @@ export default Extension.create({
 
     addOptions() {
         return {
+            enableSubPage: false,
+            onSubPageSelect: null,
             suggestion: {
                 char: '/',
                 startOfLine: false,
                 allowSpaces: true,
-                items: ({ query }) => {
-                    const q = (query || '').trim().toLowerCase()
-                    const filtered = ITEMS.filter(i => i.label.toLowerCase().includes(q))
-                    // Return at least one placeholder entry if empty (we render as disabled)
-                    return filtered.length ? filtered : [{ group: 'EMPTY', label: 'No results', disabled: true }]
-                },
-
-                // inside addOptions().suggestion.render = () => { ... }
                 render: () => {
-
                     const positionMenu = (el, rectGetter, doc) => {
                         const rect = rectGetter?.()
                         if (!rect) return
@@ -224,6 +255,11 @@ export default Extension.create({
                     let blurHandler = null
                     let currentEditor = null
                     let overlay = null
+                    const isEditorFocused = (ed) => {
+                        if (!ed) return false
+                        if (typeof ed.isFocused === 'function') return ed.isFocused()
+                        return !!ed.isFocused
+                    }
 
                     const attachOverlay = (doc, onClose) => {
                         if (overlay) return
@@ -339,7 +375,7 @@ export default Extension.create({
 
                         onUpdate: (props) => {
                             currentEditor = props.editor
-                            if (!props.editor?.isFocused?.()) { plainifyQueryAndClose(props); return }
+                            if (!isEditorFocused(props.editor)) { plainifyQueryAndClose(props); return }
                             // 10-word guard during typing
                             if (wordCount(props.query) > 10) { plainifyQueryAndClose(props); return }
                             rebuild(props)
@@ -410,6 +446,17 @@ export default Extension.create({
     },
 
     addProseMirrorPlugins() {
-        return [Suggestion({ editor: this.editor, ...this.options.suggestion })]
+        const { suggestion = {}, enableSubPage, onSubPageSelect } = this.options
+
+        const items = ({ query }) => {
+            const itemPool = buildItems({ enableSubPage, onSubPageSelect })
+            const q = (query || '').trim().toLowerCase()
+            const filtered = itemPool.filter(i => i.label.toLowerCase().includes(q))
+            return filtered.length ? filtered : [{ group: 'EMPTY', label: 'No results', disabled: true }]
+        }
+
+        const suggestionOpts = { ...suggestion, items }
+
+        return [Suggestion({ editor: this.editor, ...suggestionOpts })]
     },
 })

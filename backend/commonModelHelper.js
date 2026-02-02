@@ -1,5 +1,16 @@
 import pool from "./connection.js";
 
+export const queryCommon = async (query, values = []) => {
+    return new Promise((resolve, reject) => {
+        pool.query(query, values, (error, results) => {
+            if (error || results === undefined) {
+                return reject(error);
+            }
+            resolve(results.rows || []);
+        });
+    });
+};
+
 export const insertCommonApiCall = async (body) => {
     const {column,alias,tableName,values} = body;
     return new Promise(function(resolve, reject) {
