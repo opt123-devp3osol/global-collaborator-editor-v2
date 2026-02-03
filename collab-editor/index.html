@@ -36,6 +36,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     let options = {
       tools:[],
+      allowCommentingFromToolbar: true,
       object_id:'213123-123-fadg',
       object_type:'editor',
       timebox_appended_note_type_id:3,
@@ -58,6 +59,9 @@
       },
       onSubPageSelect: (payload) => {
         console.log('Sub Page selected:', payload);
+      },
+      onCommentOptionClicked: (payload) => {
+        console.log('Comment option clicked:', payload);
       }
     }
     GlobalTextEditorLib.TextEditor.create('editor_iframe','editor','213123-123-fadg',options);
@@ -71,5 +75,3 @@
 </div>
 </body>
 </html>
-
-

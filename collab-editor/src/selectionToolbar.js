@@ -1,4 +1,5 @@
 import {buildToolbarButtonsHtml, wireToolbarFunctions} from "./toolbarCommon.js";
+import { TextSelection } from '@tiptap/pm/state';
 
 export function createSelectionToolbar(toolbarMainDiv, tools = []) {
     toolbarMainDiv.className = 'ge_selection_toolbar global_editor_toolbar';
@@ -22,6 +23,11 @@ export function wireSelectionToolbar(editor, root) {
         const { state, view } = editor;
         const { selection } = state
 
+        if (!(selection instanceof TextSelection)) {
+            hide();
+            return;
+        }
+
         const { from, to, empty  } = selection;
         if (empty || from === to) {
             hide();
@@ -29,6 +35,7 @@ export function wireSelectionToolbar(editor, root) {
         }
         const selectedText = state.doc.textBetween(from, to, "\n");
         if (!selectedText || !selectedText.trim()) {
+            hide();
             return;
         }
 

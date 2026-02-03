@@ -27,6 +27,7 @@ import { Mention } from '@tiptap/extension-mention'
 import { CSS } from './iframeEditorCss.js'
 import { TIPTAPCSS } from './tiptapcss'
 import { SubPageLink } from './extensions/SubPageLink.js'
+import { CommentDraft } from './extensions/CommentDraft.js'
 import * as Y from 'yjs'
 import Collaboration from '@tiptap/extension-collaboration'
 import * as awarenessProtocol from 'y-protocols/awareness'
@@ -297,6 +298,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
         hideSlashPopup = false,
         isMentionPopup = false,
         isSubPageOption = false,
+        allowCommentingFromToolbar = false,
         baseServerUrl = 'https://backend.timebox.ai/global-editor-api',
         mainEditorDocumentId,
         userName: optUserName,
@@ -308,6 +310,8 @@ export function createEditorIframe(doc, editorId, options = {}) {
         userList = [],
         mentionSelectHandler,
         subPageSelectHandler,
+        onSelectTextForComment,
+        onCommentOptionClicked,
     } = options
 
     const normalizedUserList = Array.isArray(userList)
@@ -722,6 +726,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
         Bookmark,
         TableScrollWrapper,
         SubPageLink,
+        CommentDraft,
         ...(hideSlashPopup ? [] : [SlashCommand.configure({
             enableSubPage: isSubPageOption,
             onSubPageSelect: subPageSelectHandler,
@@ -799,7 +804,41 @@ export function createEditorIframe(doc, editorId, options = {}) {
         extensions: sanitizedExtensions,
         autofocus: false,
         injectCSS: false,
+        onSelectTextForComment,
+        onCommentOptionClicked,
     });
+
+    // helper to strip all draft comment marks but keep text
+    editor.removeAllCommentDraftMarks = () => {
+        const type = editor?.schema?.marks?.commentDraft;
+        if (!type) return;
+        const { state } = editor;
+        const tr = state.tr;
+        state.doc.descendants((node, pos) => {
+            if (!node.isText) return;
+            node.marks.forEach(m => {
+                if (m.type === type && m.attrs?.state === 'draft') {
+                    tr.removeMark(pos, pos + node.nodeSize, type);
+                }
+            });
+        });
+        if (tr.docChanged) editor.view.dispatch(tr);
+    };
+
+    editor.promoteCommentDraft = (draftId, subObjectId) => {
+        const type = editor?.schema?.marks?.commentDraft;
+        if (!type || !draftId) return;
+        const { state } = editor;
+        const tr = state.tr;
+        state.doc.descendants((node, pos) => {
+            if (!node.isText) return;
+            const hasDraft = node.marks.find(m => m.type === type && m.attrs?.id === draftId && m.attrs?.state === 'draft');
+            if (!hasDraft) return;
+            tr.removeMark(pos, pos + node.nodeSize, type);
+            tr.addMark(pos, pos + node.nodeSize, type.create({ id: draftId, state: 'orig', subObjectId }));
+        });
+        if (tr.docChanged) editor.view.dispatch(tr);
+    };
 
     // Save behavior (unchanged, but uses shared socket)
     function setupSave(editor, socket, docId) {
@@ -924,25 +963,47 @@ export function createEditorIframe(doc, editorId, options = {}) {
     const handleSubPageClick = (event) => {
         const anchor = event.target?.closest?.('a[data-subpage-id]');
         if (!anchor) return;
-        event.preventDefault();
-        event.stopPropagation();
         const id = anchor.getAttribute('data-subpage-id');
         const href = anchor.getAttribute('href') || '';
+        if (!href) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        // 1) allow injected handler to manage SPA navigation
         if (typeof subPageNavigateHandler === 'function') {
             subPageNavigateHandler({ id, href });
             return;
         }
+
+        if (typeof options?.onSubPageLinkClicked === 'function') {
+            options.onSubPageLinkClicked({ id, href });
+            return;
+        }
+
+        // 2) try informing parent frame (host can intercept timebox-open-subpage)
+        let routed = false;
         try {
             doc.defaultView?.parent?.postMessage({ type: 'timebox-open-subpage', id, href }, '*');
-        } catch {}
-    };
-    doc.addEventListener('click', handleSubPageClick, true);
+            routed = true;
+        } catch { console.log('ERROR') }
 
+        // 3) fallback: navigate same tab (iframe/top/window)
+        if (!routed) {
+            try { doc.defaultView?.top?.location?.assign?.(href); return; } catch {}
+            try { doc.defaultView?.parent?.location?.assign?.(href); return; } catch {}
+            try { doc.defaultView?.location?.assign?.(href); } catch {}
+        }
+    }
+
+    doc.addEventListener('click', handleSubPageClick, true);
     if (showFloatingToolbar) {
-        createSelectionToolbar(toolbarHost, tools);
+        const selectionTools = allowCommentingFromToolbar ? Array.from(new Set([...tools, 'comment'])) : tools;
+        createSelectionToolbar(toolbarHost, selectionTools);
         wireSelectionToolbar(editor, toolbarHost);
     } else {
-        createToolbar(toolbarHost, tools);
+        const normalTools = allowCommentingFromToolbar ? Array.from(new Set([...tools, 'comment'])) : tools;
+        createToolbar(toolbarHost, normalTools);
         wireToolbar(editor, toolbarHost);
     }
 

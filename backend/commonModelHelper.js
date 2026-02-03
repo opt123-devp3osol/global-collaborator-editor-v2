@@ -1,16 +1,5 @@
 import pool from "./connection.js";
 
-export const queryCommon = async (query, values = []) => {
-    return new Promise((resolve, reject) => {
-        pool.query(query, values, (error, results) => {
-            if (error || results === undefined) {
-                return reject(error);
-            }
-            resolve(results.rows || []);
-        });
-    });
-};
-
 export const insertCommonApiCall = async (body) => {
     const {column,alias,tableName,values} = body;
     return new Promise(function(resolve, reject) {
@@ -48,6 +37,24 @@ export const updateCommonApiCall = (body) => {
         })
     })
 }
+
+export const queryCommon = async (query, values = []) => {
+    return new Promise((resolve, reject) => {
+        pool.query(query, values, (error, results) => {
+            if (error || results === undefined) {
+                return reject(error);
+            }
+            resolve(results?.rows || []);
+        });
+    });
+};
+
+export const getSubDocFileNamesByIds = async (ids = []) => {
+    if (!Array.isArray(ids) || !ids.length) return [];
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+    const query = `SELECT id, title FROM timebox_docs_entries WHERE id IN (${placeholders})`;
+    return queryCommon(query, ids);
+};
 
 export const deleteCommonApiCall = (body) => {
     const {condition,tableName,returnColumnName} = body;

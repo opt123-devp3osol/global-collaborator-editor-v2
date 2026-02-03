@@ -7,7 +7,8 @@ import fs from 'fs';
 import multer from 'multer';
 import * as Y from 'yjs';
 import * as awarenessProtocol from 'y-protocols/awareness';
-import {insertCommonApiCall, updateCommonApiCall, queryCommon} from "./commonModelHelper.js";
+import {insertCommonApiCall, updateCommonApiCall, queryCommon, getSubDocFileNamesByIds} from "./commonModelHelper.js";
+import pool from "./connection.js";
 
 const yDocs = new Map();           // docId -> Y.Doc
 const awarenessStates = new Map(); // docId -> Awareness
@@ -480,16 +481,11 @@ app.post('/global-editor-api/getSubPageTitles', async (req, res) => {
       return res.json({ titles: {} });
     }
 
-    const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
-    const { rows } = await queryCommon(
-        `SELECT id, title, doc_name, name FROM timebox_docs_entries WHERE id IN (${placeholders})`,
-        ids
-    );
+    const rows = await getSubDocFileNamesByIds(ids);
 
     const titles = {};
     rows.forEach(r => {
-      const t = r.title || r.doc_name || r.name || 'Untitled';
-      titles[r.id] = t;
+      titles[r.id] = r.title || 'Untitled';
     });
 
     return res.json({ titles });

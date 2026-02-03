@@ -41,6 +41,9 @@ export class TextEditor {
                             options.onSubPageSelect(payload);
                         }
                     },
+                    subPageNavigateHandler: options?.onSubPageNavigate || options?.onSubPageLinkClicked || null,
+                    onSelectTextForComment: options?.onSelectTextForComment || null,
+                    onCommentOptionClicked: options?.onCommentOptionClicked || null,
                 };
                 const { editor, toolbar, destroy } = createEditorIframe(this.iframeDocument, editorId, mergedOptions);
 
