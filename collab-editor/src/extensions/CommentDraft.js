@@ -14,15 +14,9 @@ export const CommentDraft = Mark.create({
 
     addAttributes() {
         return {
-            id: {
-                default: null,
-            },
-            state: {
-                default: 'draft', // draft | orig
-            },
-            subObjectId: {
-                default: null,
-            },
+            id: { default: null },
+            state: { default: 'draft' }, // draft | orig
+            dataCommentObjectId: { default: null },
         };
     },
 
@@ -35,7 +29,7 @@ export const CommentDraft = Mark.create({
                     return {
                         id: el.getAttribute('id') || el.getAttribute('data-id') || null,
                         state,
-                        subObjectId: el.getAttribute('data-sub-object-id') || null,
+                        dataCommentObjectId: el.getAttribute('data-comment-object-id') || null,
                     };
                 },
             },
@@ -45,7 +39,7 @@ export const CommentDraft = Mark.create({
                     return {
                         id: el.getAttribute('id') || el.getAttribute('data-id') || null,
                         state: 'orig',
-                        subObjectId: el.getAttribute('data-sub-object-id') || null,
+                        dataCommentObjectId: el.getAttribute('data-comment-object-id') || null,
                     };
                 },
             },
@@ -59,9 +53,11 @@ export const CommentDraft = Mark.create({
             ...base,
             class: cls,
         };
-        if (HTMLAttributes.subObjectId) {
-            attrs['data-sub-object-id'] = HTMLAttributes.subObjectId;
+        if (HTMLAttributes.dataCommentObjectId) {
+            attrs['data-comment-object-id'] = HTMLAttributes.dataCommentObjectId;
         }
+        // Remove any stray camelCase attr to avoid duplicate output
+        delete attrs.dataCommentObjectId;
         return ['span', attrs, 0];
     },
 

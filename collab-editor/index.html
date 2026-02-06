@@ -62,6 +62,9 @@
       },
       onCommentOptionClicked: (payload) => {
         console.log('Comment option clicked:', payload);
+      },
+      onSelectCreateTaskOption: (payload) => {
+        console.log('Create Task option:', payload);
       }
     }
     GlobalTextEditorLib.TextEditor.create('editor_iframe','editor','213123-123-fadg',options);

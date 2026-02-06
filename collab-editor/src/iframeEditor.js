@@ -28,6 +28,7 @@ import { CSS } from './iframeEditorCss.js'
 import { TIPTAPCSS } from './tiptapcss'
 import { SubPageLink } from './extensions/SubPageLink.js'
 import { CommentDraft } from './extensions/CommentDraft.js'
+import { TaskDraft } from './extensions/TaskDraft.js'
 import * as Y from 'yjs'
 import Collaboration from '@tiptap/extension-collaboration'
 import * as awarenessProtocol from 'y-protocols/awareness'
@@ -312,6 +313,9 @@ export function createEditorIframe(doc, editorId, options = {}) {
         subPageSelectHandler,
         onSelectTextForComment,
         onCommentOptionClicked,
+        onCommentNodeClicked,
+        onSubPageLinkClicked,
+        onSelectCreateTaskOption,
     } = options
 
     const normalizedUserList = Array.isArray(userList)
@@ -727,6 +731,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
         TableScrollWrapper,
         SubPageLink,
         CommentDraft,
+        TaskDraft,
         ...(hideSlashPopup ? [] : [SlashCommand.configure({
             enableSubPage: isSubPageOption,
             onSubPageSelect: subPageSelectHandler,
@@ -806,6 +811,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
         injectCSS: false,
         onSelectTextForComment,
         onCommentOptionClicked,
+        onSelectCreateTaskOption,
     });
 
     // helper to strip all draft comment marks but keep text
@@ -825,7 +831,57 @@ export function createEditorIframe(doc, editorId, options = {}) {
         if (tr.docChanged) editor.view.dispatch(tr);
     };
 
-    editor.promoteCommentDraft = (draftId, subObjectId) => {
+    // helper to strip all draft task marks but keep text
+    editor.removeAllTaskDraftMarks = () => {
+        const type = editor?.schema?.marks?.taskDraft;
+        if (!type) return;
+        const { state } = editor;
+        const tr = state.tr;
+        state.doc.descendants((node, pos) => {
+            if (!node.isText) return;
+            node.marks.forEach(m => {
+                if (m.type === type && (m.attrs?.state ?? 'draft') === 'draft') {
+                    tr.removeMark(pos, pos + node.nodeSize, type);
+                }
+            });
+        });
+        if (tr.docChanged) editor.view.dispatch(tr);
+    };
+
+    // helper to strip comment marks whose data-comment-object-id is not in the allowed list
+    editor.removeDanglingCommentMarks = (subObjects = []) => {
+        const type = editor?.schema?.marks?.commentDraft;
+        if (!type) return;
+
+        const allowedIds = new Set(
+            (subObjects || [])
+                .map(item => String(item?.sub_object_id || item?.id || '').trim())
+                .filter(Boolean)
+        );
+
+        const { state } = editor;
+        const tr = state.tr;
+
+        state.doc.descendants((node, pos) => {
+            if (!node.isText) return;
+
+            node.marks.forEach(mark => {
+                if (mark.type !== type) return;
+                if (mark.attrs?.state !== 'orig') return;
+
+                const cid = String(mark.attrs?.dataCommentObjectId || mark.attrs?.id || '').trim();
+                const isAllowed = cid && allowedIds.has(cid);
+
+                if (!isAllowed) {
+                    tr.removeMark(pos, pos + node.nodeSize, type);
+                }
+            });
+        });
+
+        if (tr.docChanged) editor.view.dispatch(tr);
+    };
+
+    editor.promoteCommentDraft = (draftId, commentObjectId) => {
         const type = editor?.schema?.marks?.commentDraft;
         if (!type || !draftId) return;
         const { state } = editor;
@@ -835,7 +891,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
             const hasDraft = node.marks.find(m => m.type === type && m.attrs?.id === draftId && m.attrs?.state === 'draft');
             if (!hasDraft) return;
             tr.removeMark(pos, pos + node.nodeSize, type);
-            tr.addMark(pos, pos + node.nodeSize, type.create({ id: draftId, state: 'orig', subObjectId }));
+            tr.addMark(pos, pos + node.nodeSize, type.create({ id: draftId, state: 'orig', dataCommentObjectId: commentObjectId }));
         });
         if (tr.docChanged) editor.view.dispatch(tr);
     };
@@ -970,33 +1026,41 @@ export function createEditorIframe(doc, editorId, options = {}) {
         event.preventDefault();
         event.stopPropagation();
 
-        // 1) allow injected handler to manage SPA navigation
-        if (typeof subPageNavigateHandler === 'function') {
-            subPageNavigateHandler({ id, href });
-            return;
-        }
-
-        if (typeof options?.onSubPageLinkClicked === 'function') {
-            options.onSubPageLinkClicked({ id, href });
-            return;
-        }
-
-        // 2) try informing parent frame (host can intercept timebox-open-subpage)
-        let routed = false;
-        try {
-            doc.defaultView?.parent?.postMessage({ type: 'timebox-open-subpage', id, href }, '*');
-            routed = true;
-        } catch { console.log('ERROR') }
-
-        // 3) fallback: navigate same tab (iframe/top/window)
-        if (!routed) {
-            try { doc.defaultView?.top?.location?.assign?.(href); return; } catch {}
-            try { doc.defaultView?.parent?.location?.assign?.(href); return; } catch {}
-            try { doc.defaultView?.location?.assign?.(href); } catch {}
-        }
+        onSubPageLinkClicked?.({ id, href });
+        return true;
     }
 
-    doc.addEventListener('click', handleSubPageClick, true);
+    const handleCommentNodeClick = (event) => {
+        const target = event.target;
+        const baseEl = (target && target.nodeType === Node.TEXT_NODE) ? target.parentElement : target;
+        const node = baseEl?.closest?.('.tipt-comment-orig');
+        if (!node) return;
+
+        const commentObjectId = node.getAttribute('data-comment-object-id');
+        const text = node.textContent || '';
+        const rect = node.getBoundingClientRect();
+        const position = {
+            top: rect.top + doc.defaultView.scrollY,
+            left: rect.left + doc.defaultView.scrollX,
+        };
+        const payload = { commentObjectId, text, position};
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        onCommentNodeClicked?.(payload);
+        return true;
+    };
+
+    const handleDocClick = (event) => {
+        // try subpage first, if handled stop
+        if (handleSubPageClick(event)) return;
+        // then comment node
+        if (handleCommentNodeClick(event)) return;
+    };
+
+    doc.addEventListener('click', handleDocClick, true);
+
     if (showFloatingToolbar) {
         const selectionTools = allowCommentingFromToolbar ? Array.from(new Set([...tools, 'comment'])) : tools;
         createSelectionToolbar(toolbarHost, selectionTools);
@@ -1027,7 +1091,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
             hideLoader();
         } catch {}
         try {
-            doc.removeEventListener('click', handleSubPageClick, true);
+            doc.removeEventListener('click', handleDocClick, true);
         } catch {}
         try {
             if (titleRefreshTimer) clearTimeout(titleRefreshTimer);

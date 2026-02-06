@@ -44,6 +44,8 @@ export class TextEditor {
                     subPageNavigateHandler: options?.onSubPageNavigate || options?.onSubPageLinkClicked || null,
                     onSelectTextForComment: options?.onSelectTextForComment || null,
                     onCommentOptionClicked: options?.onCommentOptionClicked || null,
+                    onCommentNodeClicked: options?.onCommentNodeClicked || null,
+                    onSelectCreateTaskOption: options?.onSelectCreateTaskOption || options?.onSelectCreateTaskOption || null,
                 };
                 const { editor, toolbar, destroy } = createEditorIframe(this.iframeDocument, editorId, mergedOptions);
 

@@ -95,6 +95,25 @@ export function buildToolbarButtonsHtml(tools = []) {
         `;
     }
 
+    if (tools.includes('create_task') || allowAll) {
+        html += `
+          <div class="global_editor_button_group event_group_tool">
+            <div class="tool_bar_wrap">
+              <button type="button" class="global_editor_button" tabindex="-1" id="createTaskButton">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 18 18">
+                  <g fill="none" stroke="#0c0310" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="9" r="7.5"></circle>
+                    <line x1="9" y1="5.5" x2="9" y2="12.5"></line>
+                    <line x1="5.5" y1="9" x2="12.5" y2="9"></line>
+                  </g>
+                </svg>
+              </button>
+              <div class="ge_tooltip_wrapper"><span class="hover_ele_type">Create Task</span></div>
+            </div>
+          </div>
+        `;
+    }
+
     if (tools.includes('text_format') || allowAll) {
         html += `
           <!-- Text Format -->
@@ -1322,6 +1341,53 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
 
             if (typeof editor.options?.onCommentOptionClicked === 'function') {
                 editor.options.onCommentOptionClicked({ text: selectedText, from, to, position, id: markId });
+            }
+        });
+    }
+
+    const createTaskBtn = $('#createTaskButton');
+    if (createTaskBtn) {
+        createTaskBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const { state, view } = editor;
+            const { from, to, empty } = state.selection || {};
+            if (empty || from === to) return;
+            const selectedText = state.doc.textBetween(from, to, '\n');
+            if (!selectedText || !selectedText.trim()) return;
+
+            const startCoords = view.coordsAtPos(from);
+            const endCoords = view.coordsAtPos(to);
+            const top = Math.min(startCoords.top, endCoords.top);
+            const left = Math.min(startCoords.left, endCoords.left);
+            const labelRect = view.dom.getBoundingClientRect();
+            const scrollY = rootDoc?.defaultView?.scrollY || 0;
+            const scrollX = rootDoc?.defaultView?.scrollX || 0;
+            const position = {
+                top: top + scrollY,
+                left: left + scrollX,
+                relativeTop: top - labelRect.top,
+                relativeLeft: left - labelRect.left,
+            };
+
+            // Apply task draft mark instead of inserting raw HTML
+            const markId = `task_draft_${Date.now()}`;
+            editor
+                .chain()
+                .focus()
+                .setTextSelection({ from, to })
+                .setTaskDraft({ id: markId, state: 'draft' })
+                .setTextSelection(to) // collapse selection to remove highlight
+                .run();
+
+            if (typeof editor.options?.onSelectCreateTaskOption === 'function') {
+                editor.options.onSelectCreateTaskOption({ text: selectedText, from, to, position });
+            }
+
+            // Hide floating toolbar by collapsing selection and moving it offscreen
+            if (root) {
+                root.classList.remove('is-visible');
+                root.style.transform = 'translate3d(-9999px, -9999px, 0)';
             }
         });
     }
