@@ -314,6 +314,7 @@ export function createEditorIframe(doc, editorId, options = {}) {
         onSelectTextForComment,
         onCommentOptionClicked,
         onCommentNodeClicked,
+        onTaskNodeClicked,
         onSubPageLinkClicked,
         onSelectCreateTaskOption,
     } = options
@@ -834,14 +835,46 @@ export function createEditorIframe(doc, editorId, options = {}) {
     // helper to strip all draft task marks but keep text
     editor.removeAllTaskDraftMarks = () => {
         const type = editor?.schema?.marks?.taskDraft;
-        if (!type) return;
+        const { state } = editor;
+        const tr = state.tr;
+        if (type) {
+            state.doc.descendants((node, pos) => {
+                if (!node.isText) return;
+                node.marks.forEach(m => {
+                    if (m.type === type && (m.attrs?.state ?? 'draft') === 'draft') {
+                        tr.removeMark(pos, pos + node.nodeSize, type);
+                    }
+                });
+            });
+        }
+        if (tr.docChanged) {
+            editor.view.dispatch(tr);
+        } else {
+            // Fallback: unwrap any leftover DOM spans (e.g., pasted HTML) to keep UI clean
+            const docEl = editor.view?.dom;
+            const spans = docEl?.querySelectorAll?.('span.temp_draft_task_creation') || [];
+            spans.forEach(span => {
+                const parent = span.parentNode;
+                if (!parent) return;
+                while (span.firstChild) parent.insertBefore(span.firstChild, span);
+                parent.removeChild(span);
+            });
+        }
+    };
+
+    // Promote a task draft mark to orig state and attach time entry id
+    editor.promoteTaskDraft = (draftId, timeEntryId = null) => {
+        const type = editor?.schema?.marks?.taskDraft;
+        if (!type || !draftId) return;
         const { state } = editor;
         const tr = state.tr;
         state.doc.descendants((node, pos) => {
             if (!node.isText) return;
             node.marks.forEach(m => {
-                if (m.type === type && (m.attrs?.state ?? 'draft') === 'draft') {
-                    tr.removeMark(pos, pos + node.nodeSize, type);
+                if (m.type === type && m.attrs?.id === draftId) {
+                    const attrs = { ...m.attrs, state: 'orig' };
+                    if (timeEntryId) attrs.dataTimeEntryId = timeEntryId;
+                    tr.addMark(pos, pos + node.nodeSize, type.create(attrs));
                 }
             });
         });
@@ -1052,11 +1085,35 @@ export function createEditorIframe(doc, editorId, options = {}) {
         return true;
     };
 
+    const handleTaskNodeClick = (event) => {
+        const target = event.target;
+        const baseEl = (target && target.nodeType === Node.TEXT_NODE) ? target.parentElement : target;
+        const node = baseEl?.closest?.('.org_draft_task_creation');
+        if (!node) return;
+
+        const timeEntryId = node.getAttribute('data-time-entry-id');
+        const text = node.textContent || '';
+        const rect = node.getBoundingClientRect();
+        const position = {
+            top: rect.top + doc.defaultView.scrollY,
+            left: rect.left + doc.defaultView.scrollX,
+        };
+        const payload = { timeEntryId, text, position };
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        onTaskNodeClicked?.(payload);
+        return true;
+    }
+
     const handleDocClick = (event) => {
         // try subpage first, if handled stop
         if (handleSubPageClick(event)) return;
         // then comment node
         if (handleCommentNodeClick(event)) return;
+        // task node
+        if (handleTaskNodeClick(event)) return;
     };
 
     doc.addEventListener('click', handleDocClick, true);

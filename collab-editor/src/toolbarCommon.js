@@ -1381,7 +1381,7 @@ export function wireToolbarFunctions(root,editor,showAtSelection = null) {
                 .run();
 
             if (typeof editor.options?.onSelectCreateTaskOption === 'function') {
-                editor.options.onSelectCreateTaskOption({ text: selectedText, from, to, position });
+                editor.options.onSelectCreateTaskOption({ text: selectedText, from, to, position, markId });
             }
 
             // Hide floating toolbar by collapsing selection and moving it offscreen
